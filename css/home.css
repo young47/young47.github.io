@@ -131,7 +131,7 @@ html{
 	top: 50%;
 	left: 50%;
 	margin-top: -100px;
-	backdrop-filter: saturate(180%) blur(20px);
+	/*backdrop-filter: saturate(180%) blur(20px);*/
 	-webkit-backdrop-filter: saturate(180%) blur(20px);
 	-webkit-background-size: cover;
 	-moz-background-size: cover;
@@ -141,7 +141,7 @@ html{
 }
 .homelogoback {
 	overflow: hidden;
-	padding: 20px;
+	padding: 0px;
 	margin-left: auto;
     margin-right: auto;
 	filter:alpha(opacity=90);  -moz-opacity:0.9;  -khtml-opacity: 0.9;  opacity: 0.9;
