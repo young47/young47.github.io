@@ -58,6 +58,7 @@ html{
     -ms-user-select: none;
     -khtml-user-select: none;
     user-select: none;
+    opacity: 0.6
 }
 /*.intro-logo:before{
     content: "";
