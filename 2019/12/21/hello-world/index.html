@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   
-  <title>hello world | Young</title>
+  <title>序列化协议 | Young</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   
     <meta name="keywords" content="AABBCC" />
@@ -11,19 +11,22 @@
   
   
   
-  <meta name="description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+  <meta name="description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。 Java序列化123456789101112131415">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hello World">
-<meta property="og:url" content="http://yoursite.com/2019/12/21/hello-world/index.html">
+<meta property="og:title" content="序列化协议">
+<meta property="og:url" content="http://young47.github.io/2019/12/21/hello-world/index.html">
 <meta property="og:site_name" content="Young">
-<meta property="og:description" content="Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick">
+<meta property="og:description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。 Java序列化123456789101112131415">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://young47.github.io/2019/12/21/hello-world/binary.jpg">
+<meta property="og:image" content="http://young47.github.io/2019/12/21/hello-world/protobuf.png">
 <meta property="article:published_time" content="2019-12-21T08:21:21.201Z">
-<meta property="article:modified_time" content="2019-12-24T07:33:32.654Z">
-<meta property="article:tag" content="demo">
-<meta property="article:tag" content="haha">
-<meta property="article:tag" content="xixi">
+<meta property="article:modified_time" content="2019-12-25T12:56:31.934Z">
+<meta property="article:author" content="Yangpeng">
+<meta property="article:tag" content="Protobuf">
+<meta property="article:tag" content="Thrift">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://young47.github.io/2019/12/21/hello-world/binary.jpg">
   
     <link rel="alternate" href="/atom.xml" title="Young" type="application/atom+xml">
   
@@ -73,8 +76,6 @@
 
   
   
-  
-    <link rel="stylesheet" href="/css/vdonate.css" >
   
 
 <meta name="generator" content="Hexo 4.1.1"></head>
@@ -179,7 +180,7 @@
         
   
     <h1 class="thumb" class="article-title" itemprop="name">
-      Hello World
+      序列化协议
     </h1>
   
 
@@ -192,7 +193,7 @@
 	</a>
 
       
-    <a class="article-category-link" href="/categories/example/">example</a>
+    <a class="article-category-link" href="/categories/Protocol/">Protocol</a>
 
       
 	<a class="article-views">
@@ -206,53 +207,148 @@
     </div>
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+        <img src="/2019/12/21/hello-world/binary.jpg" class="" title="binary">
 
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。</p>
+</blockquote>
+<p>本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。</p>
+<h2 id="Java序列化"><a href="#Java序列化" class="headerlink" title="Java序列化"></a>Java序列化</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.young.blog.serialize;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Person</span> <span class="keyword">implements</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line">    <span class="comment">//16进制表示：f7 18 f0 63 e4 2f f0 56</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = -<span class="number">641498635079520170L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> String name = <span class="string">"AAA"</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> age = <span class="number">100</span>;</span><br><span class="line">    <span class="keyword">private</span> Job job;</span><br><span class="line">    </span><br><span class="line">    <span class="class"><span class="keyword">class</span> <span class="title">Job</span> </span>&#123;</span><br><span class="line">        <span class="comment">//16进制表示：8e d0 f8 77 d6 23 2e 82</span></span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = -<span class="number">8155745731590541694L</span>;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">int</span> salary = <span class="number">9000</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<h3 id="二进制格式"><a href="#二进制格式" class="headerlink" title="二进制格式"></a>二进制格式</h3><p>Java序列化是Java语言内置的功能，用于保存一个对象的状态。下面的二进制是使用Java序列化上面对象的结果。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;ac ed表示魔数；00 05表示序列化版本</span><br><span class="line">ac ed 00 05</span><br><span class="line"> </span><br><span class="line">&#x2F;&#x2F;表示一个对象的开始</span><br><span class="line">73 </span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;72表示开始对Class进行描述，00 1f表示接下来31个byte作为一组来表示类的全限定名</span><br><span class="line">72 00 1f  </span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;这里表示com.young.blog.serialize.Person</span><br><span class="line">63 6f 6d 2e 79 6f 75 6e 67 2e 62 6c 6f 67 2e 73 65 72 69 61 6c 69 7a 65 2e 50 65 72 73 6f 6e </span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;Person的UUID</span><br><span class="line">f7 18 f0 63 e4 2f f0 56 </span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;代表这个类是Serializable，04代表是Externalizable </span><br><span class="line">02</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;字段个数，name、age和job三个</span><br><span class="line">00 03 </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;字段的描述有这么个规律，先描述字段的名字，再描述字段的类型</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;49代表整数(I), 00 03表示后面的3个byte作为一组表示字段名age</span><br><span class="line">&#x2F;&#x2F;基本类型直接用一个byte就可描述，因此不必再专门描述字段的类型</span><br><span class="line">49 00 03 61 67 65</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;4c代表对象(L), 00 03表示后面的3个byte作为一组表示字段名job</span><br><span class="line">4c 00 03 6a 6f 62</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;74代表对上面的job类型Job的字面值进行描述，这里是个String，0x25表示接下来的37个byte为一组表示Job</span><br><span class="line">74 00 25</span><br><span class="line">&#x2F;&#x2F;下面表示Lcom&#x2F;young&#x2F;blog&#x2F;serialize&#x2F;Person$Job;的二进制，注意后面带分号</span><br><span class="line">4c 63 6f 6d 2f 79 6f 75 6e 67 2f 62 6c 6f 67 2f 73 65 72 69 61 6c 69 7a 65 2f 50 65 72 73 6f 6e 24 4a 6f 62 3b</span><br><span class="line"> </span><br><span class="line">&#x2F;&#x2F;字段名name</span><br><span class="line">4c 00 04 6e 61 6d 65</span><br><span class="line">&#x2F;&#x2F;对java.lang.String 进行描述，0x12表示接下来的18个byte作为一组表示String</span><br><span class="line">74 00 12</span><br><span class="line">&#x2F;&#x2F;下面表示Ljava&#x2F;lang&#x2F;String;</span><br><span class="line">4c 6a 61 76 61 2f 6c 61 6e 67 2f 53 74 72 69 6e 67 3b</span><br><span class="line"></span><br><span class="line">78 &#x2F;&#x2F; 78表示描述性的都已结束，接下来是数据</span><br><span class="line"></span><br><span class="line">70 </span><br><span class="line">00 00 00 64</span><br><span class="line">&#x2F;&#x2F;描述Class Job</span><br><span class="line">73 72 00 23 63 6f 6d 2e 79 6f 75 6e 67 2e 62 6c 6f 67 2e 73 65 72 69 61 6c 69 7a 65 2e 50 65 72 73 6f 6e 24 4a 6f 62 8e d0 f8 77 d6 23 2e 82 02 00 02 49 00 06 73 61 6c 61 72 79 4c 00 06 74 68 69 73 24 30 74 00 21 4c 63 6f 6d 2f 79 6f 75 6e 67 2f 62 6c 6f 67 2f 73 65 72 69 61 6c 69 7a 65 2f 50 65 72 73 6f 6e 3b</span><br><span class="line">78</span><br><span class="line">&#x2F;&#x2F;salary的值 </span><br><span class="line">70 00 00 23 28</span><br><span class="line"> </span><br><span class="line">71 00 7e 00 03 </span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;name的值</span><br><span class="line">74 00 03 41 41 41</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>运行命令javap -v Person，可以看出Java序列化过程有如下两步：</p>
+<ul>
+<li>描述对象的Class结构</li>
+<li>写入数据</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">com</span>.<span class="title">young</span>.<span class="title">blog</span>.<span class="title">serialize</span>.<span class="title">Person</span> <span class="keyword">implements</span> <span class="title">java</span>.<span class="title">io</span>.<span class="title">Serializable</span></span></span><br><span class="line">Constant pool:</span><br><span class="line">	 ......</span><br><span class="line">	 #80 = NameAndType        #38:#39       // name:Ljava/lang/String;</span><br><span class="line">	 #81 = NameAndType        #40:#41       // age:I</span><br><span class="line"> 	 #84 = NameAndType        #42:#43       // job:Lcom/young/blog/serialize/Person$Job;</span><br><span class="line">    ......</span><br></pre></td></tr></table></figure>
 
+
+<h2 id="Protobuf"><a href="#Protobuf" class="headerlink" title="Protobuf"></a>Protobuf</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Person</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> String name = <span class="string">"AAA"</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> age = <span class="number">300</span>;</span><br><span class="line">    <span class="keyword">private</span> Job job;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Person</span><span class="params">(Job job)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.job = job;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="class"><span class="keyword">class</span> <span class="title">Job</span> </span>&#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">int</span> salary = <span class="number">9000</span>;</span><br><span class="line">    &#125;           </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="二进制格式-1"><a href="#二进制格式-1" class="headerlink" title="二进制格式"></a>二进制格式</h3><p>使用Protobuf序列化Person类的二进制：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">0a 03 41 41 41 10 ac 02 1a 03 08 a8 46</span><br></pre></td></tr></table></figure>
+
+
+
+<p>Protobuf总体的结构如下，所有字段会紧凑的排列在一起，默认顺序就是Java文件中定义的顺序。<br>其中value可以代表真实的数据，也可以代表一个field。</p>
+<img src="/2019/12/21/hello-world/protobuf.png" class="" title="protobuf">
+
+<h4 id="key"><a href="#key" class="headerlink" title="key"></a>key</h4><p>key由两部分组合而成，第一部分是field_num，从1开始，也就是字段的顺序；第二部分wire_type，是Protobuf定义的一个数字-类型对应关系表，如下</p>
+<table>
+<thead>
+<tr>
+<th align="center">Type</th>
+<th align="center">Meaning</th>
+<th align="center">Used For</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">0</td>
+<td align="center">Varint</td>
+<td align="center">int32, int64, uint32, uint64, sint32, sint64, bool, enum</td>
+</tr>
+<tr>
+<td align="center">1</td>
+<td align="center">64-bit</td>
+<td align="center">fixed64, sfixed64, double</td>
+</tr>
+<tr>
+<td align="center">2</td>
+<td align="center">Length-delimited</td>
+<td align="center">string, bytes, embedded messages, packed repeated fields</td>
+</tr>
+<tr>
+<td align="center">3</td>
+<td align="center">Start group</td>
+<td align="center">groups (<strong>deprecated</strong>)</td>
+</tr>
+<tr>
+<td align="center">4</td>
+<td align="center">End group</td>
+<td align="center">groups (<strong>deprecated</strong>)</td>
+</tr>
+<tr>
+<td align="center">5</td>
+<td align="center">32-bit</td>
+<td align="center">fixed32, sfixed32, float</td>
+</tr>
+</tbody></table>
+<p>key = field_num &lt;&lt; 3 | wire_type，采用这种组合的方式，能实现使用尽量少的空间保存尽量多的信息。</p>
+<blockquote>
+<p>很多场合都有这种设计，在一个byte里保存更多的信息</p>
+</blockquote>
+<h4 id="length"><a href="#length" class="headerlink" title="length"></a>length</h4><p>对应二进制数据，需要一个length指定byte的长度作为一组进行解析，否则就区分不开这些二进制了。<br>由于数字可以自描述，因此当序列化一个数字时，是没有这个字段的。</p>
+<h4 id="value"><a href="#value" class="headerlink" title="value"></a>value</h4><p>首先需要说明的是，Protobuf里对数字采用了Little-Endian保存，这点和 Java 序列化不同。</p>
+<blockquote>
+<p>Little-Endian: 小地址保存低byte，大地址保存高byte</p>
+<p>Big-Endian: 小地址保存高byte，大地址保存低byte，这和我们的阅读顺序一致</p>
+</blockquote>
+<p>在Java里，一个int的保存需要4个byte，long的保存需要8个byte。对于较小的数字，比如1，就是31个0跟着1个1，这些0其实不需要但是也得保存。因此Protobuf采用了varint方法，简单讲，就是当存储一个整数时，不是固定地采用几个字节而是根据实际大小采用更适当的大小来保存，这样就能有效降低不必要的内存占用。</p>
+<blockquote>
+<p>UTF-8就是采用varint的方式对unicode进行编码</p>
+</blockquote>
+<p>举个例子说明一下varint的基本原理</p>
+<p>300 = 0000 0001 0010 1100</p>
+<ol>
+<li><p>二进制从右边起7个为一组拆开</p>
+<p>00 0000010 0101100</p>
+</li>
+<li><p>先去掉都是0的组，由于Little-Endian，上面的二进制需要翻转一下</p>
+<p>0101100 0000010</p>
+</li>
+<li><p>填充这两组的第一个bit，填0还是1取决于后面的byte数</p>
+<p>10101100 00000010</p>
+<p>第一个bit称为<em>most significant bit</em> (msb)，1说明该byte与后面的1个byte是一组共同组成一个数字，0说明自己代表一个数字</p>
+<p>10101100 00000010 = 0xac 0x02</p>
+</li>
+</ol>
+<h4 id="手动生成序列化值"><a href="#手动生成序列化值" class="headerlink" title="手动生成序列化值"></a>手动生成序列化值</h4><p>现在手动生成Person的序列化信息，最后比对代码生成的结果，看是否相同。</p>
+<p><strong>String name = “AAA”</strong></p>
+<p>field_num = 1, wire_type = 2</p>
+<p>key = (1&lt;&lt;3) | 2 = 0000 1010 = 0x0a</p>
+<p>length = 3</p>
+<p>value = 0x41 0x41 0x41</p>
+<p>name序列化后： 0a 03 41 41 41</p>
+<p><strong>int age = 300</strong></p>
+<p>field_num = 2, wire_type = 0 </p>
+<p>key = (2&lt;&lt;3) | 0 = 0001 0000 = 0x10</p>
+<p>value = 0xac 0x02</p>
+<p>age序列化结果：10 ac 02</p>
+<p><strong>Job job</strong></p>
+<p>job是个复合字段，这里实际是对Job里面字段的序列化</p>
+<p>field_num = 3, wire_type = 2 </p>
+<p>key = 3&lt;&lt;3 | 2 = 0001 1010 = 0x1a</p>
+<p>length = 3</p>
+<p>value为复合类型</p>
+<ul>
+<li>key = (1&lt;&lt;3) | 0 = 0x08</li>
+<li>value = 0xa8 0x46</li>
+</ul>
+<p>因此job的序列化结果： 1a 03 08 a8 46</p>
+<p>和最初给的结果相同。</p>
+<blockquote>
+<p>老版本的Protobuf wire_type中有group，当遇到引用类型时，会使用group包裹起来。新版本中，group已废弃，统一使用key-len-value的格式。</p>
+<p>如果使用过ProtostuffIOUtil包，这里面有两个类ProtobufIOUtil和ProtostuffIOUtil，使用1.4.0版本测试发现，ProtobufIOUtil使用的是新协议格式，而ProtostuffIOUtil使用的是老协议格式，这点要注意</p>
+</blockquote>
 <p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
 
       
     </div>
     <footer class="article-footer">
       
-        
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/demo/" rel="tag">demo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/haha/" rel="tag">haha</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/xixi/" rel="tag">xixi</a></li></ul>
-
-      
-      
-        <div id="donation_div"></div>
-
-
-<script src="/js/vdonate.js"></script>
-
-<script>
-var a = new Donate({
-  title: '如果觉得这篇文章对您有帮助，请我吃冰棍？', // 可选参数，打赏标题
-  btnText: '打赏支持', // 可选参数，打赏按钮文字
-  el: document.getElementById('donation_div'),
-  wechatImage: '/css/images/Wechatpay.png',
-  alipayImage: '/css/images/alipay.jpeg'
-});
-</script>
       
       
       <div>
         <ul class="post-copyright">
           <li class="post-copyright-author">
-          <strong>本文作者:  </strong></a>
+          <strong>本文作者:  </strong>Yangpeng</a>
           </li>
           <li class="post-copyright-link">
           <strong>本文链接:  </strong>
-          <a href="/2019/12/21/hello-world/" target="_blank" title="Hello World">http://yoursite.com/2019/12/21/hello-world/</a>
+          <a href="/2019/12/21/hello-world/" target="_blank" title="序列化协议">http://young47.github.io/2019/12/21/hello-world/</a>
           </li>
           <li class="post-copyright-license">
             <strong>版权声明:   </strong>
@@ -265,10 +361,48 @@ var a = new Donate({
 
       
       
+        
+	<div id="comment">
+		<!-- 国内Valine评论系统 -->
+		<div id="lv-container" data-id="city" data-uid="Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz" style="margin-top:45px"></div>
+		<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+		<script src='//unpkg.com/valine/dist/Valine.min.js'></script>
+		<script>
+        new Valine({
+            el: '#lv-container',
+            appId: 'Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz',
+            appKey: 'IOJj3idrR64NvJ7CM41rhDHT',
+            notify: false, 
+    		verify: false, 
+    		avatar: 'monsterid', 
+    		placeholder: '说点什么吧!'
+        })
+        </script>
+	
+
+	</div>
+
+
+
+      
     </footer>
   </div>
   
     
+<nav id="article-nav">
+  
+    <a href="/2019/12/26/Redis%E5%92%8CMysql%E4%B8%80%E8%87%B4%E6%80%A7%E6%96%B9%E6%A1%88%E6%8E%A2%E8%AE%A8/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">上一篇</strong>
+      <div class="article-nav-title">
+        
+          Redis和Mysql一致性方案探讨
+        
+      </div>
+    </a>
+  
+  
+</nav>
+
   
 </article>
 
@@ -278,7 +412,7 @@ var a = new Donate({
     <div id="toc" class="toc-article">
     <strong class="toc-title">文章目录</strong>
     
-        <ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Quick-Start"><span class="nav-number">1.</span> <span class="nav-text">Quick Start</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Create-a-new-post"><span class="nav-number">1.1.</span> <span class="nav-text">Create a new post</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Run-server"><span class="nav-number">1.2.</span> <span class="nav-text">Run server</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Generate-static-files"><span class="nav-number">1.3.</span> <span class="nav-text">Generate static files</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Deploy-to-remote-sites"><span class="nav-number">1.4.</span> <span class="nav-text">Deploy to remote sites</span></a></li></ol></li></ol>
+        <ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Java序列化"><span class="nav-number">1.</span> <span class="nav-text">Java序列化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二进制格式"><span class="nav-number">1.1.</span> <span class="nav-text">二进制格式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Protobuf"><span class="nav-number">2.</span> <span class="nav-text">Protobuf</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二进制格式-1"><span class="nav-number">2.1.</span> <span class="nav-text">二进制格式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#key"><span class="nav-number">2.1.1.</span> <span class="nav-text">key</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#length"><span class="nav-number">2.1.2.</span> <span class="nav-text">length</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#value"><span class="nav-number">2.1.3.</span> <span class="nav-text">value</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#手动生成序列化值"><span class="nav-number">2.1.4.</span> <span class="nav-text">手动生成序列化值</span></a></li></ol></li></ol></li></ol>
     
     </div>
   </aside>
@@ -293,7 +427,7 @@ var a = new Donate({
   <div class="container">
       	<div class="row">
 	      <p> Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/iTimeTraveler/hexo-theme-hiker" target="_blank">Hexo-theme-hiker</a> </p>
-	      <p id="copyRightEn">Copyright &copy; 2013 - 2019 Young All Rights Reserved.</p>
+	      <p id="copyRightEn">Copyright &copy; 2013 - 2020 Young All Rights Reserved.</p>
 	      
 	      
     		<p class="busuanzi_uv">
@@ -453,7 +587,7 @@ var a = new Donate({
             Young
           </div>
           <div class="panel-body">
-            Copyright © 2019 Young All Rights Reserved.
+            Copyright © 2020 Yangpeng All Rights Reserved.
           </div>
         </div>
       </div>

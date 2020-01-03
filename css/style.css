@@ -143,6 +143,9 @@ body {
 .article-entry h6 {
   color: #39aa56;
 }
+.fancybox img {
+  padding-top: 15px;
+}
 #rocket {
   position: fixed;
   right: 50px;
