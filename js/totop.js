@@ -26,7 +26,8 @@ $("#menu-switch").click(function() {
         setTimeout(function () { 
             $("#toc-sidebar").removeClass("toc-hide");
         }, 200);
-        $('#main>article').css("width", articleW);
+        // $('#main>article').css("width", articleW);
+        $('#main>article').css("width", "75%");
     }else{
         $("#toc-sidebar").addClass("toc-hide");
         setTimeout(function () { 

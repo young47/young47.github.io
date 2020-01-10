@@ -2,7 +2,8 @@ var toc = document.getElementById('toc')
 
 if (toc != null) {
 	window.addEventListener("scroll", scrollcatelogHandler);
-	var tocPosition = toc.offsetTop;
+	// var tocPosition = toc.offsetTop;
+	var tocPosition = 161;
 
 	function scrollcatelogHandler(e) {
 		 var event = e || window.event,

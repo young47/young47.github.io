@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>dubbo provider | Young</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  
+    <meta name="keywords" content="AABBCC" />
+  
+  
+  
+  
+  <meta name="description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇文章介绍了Dubbo的SPI机制，这篇文章继续介绍Dubbo Provider暴露服务的过程。暴露服务，顾名思义，就是要让服务端知道自己能提供哪些服务，包含服务的ip、端口、实例名和方法名等。那么接下来就开始服务暴露过程吧，开始之前，先贴上我们的样例代码及其配置。 配置1234567891011121314151617181920public">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dubbo Provider">
+<meta property="og:url" content="http://youngest.cool/2020/01/08/Dubbo-Provider/index.html">
+<meta property="og:site_name" content="Young">
+<meta property="og:description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇文章介绍了Dubbo的SPI机制，这篇文章继续介绍Dubbo Provider暴露服务的过程。暴露服务，顾名思义，就是要让服务端知道自己能提供哪些服务，包含服务的ip、端口、实例名和方法名等。那么接下来就开始服务暴露过程吧，开始之前，先贴上我们的样例代码及其配置。 配置1234567891011121314151617181920public">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youngest.cool/2020/01/08/Dubbo-Provider/provider.jpg">
+<meta property="og:image" content="http://youngest.cool/2020/01/08/Dubbo-Provider/invoker.png">
+<meta property="og:image" content="http://youngest.cool/2020/01/08/Dubbo-Provider/exporter.png">
+<meta property="article:published_time" content="2020-01-08T09:08:16.000Z">
+<meta property="article:modified_time" content="2020-01-10T02:10:26.939Z">
+<meta property="article:author" content="Yangpeng">
+<meta property="article:tag" content="Dubbo">
+<meta property="article:tag" content="Provider">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youngest.cool/2020/01/08/Dubbo-Provider/provider.jpg">
+  
+    <link rel="alternate" href="/atom.xml" title="Young" type="application/atom+xml">
+  
+
+  
+
+  <link rel="icon" href="/css/images/kkk.png">
+  <link rel="apple-touch-icon" href="/css/images/kkk.png">
+  <!-- google的font加载太慢了，先注掉。 https://cdn.baomitu.com/index/fonts 这里可以找到字体库 -->
+  
+    <!-- <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css"> -->
+  
+  <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans|Montserrat:700" rel="stylesheet" type="text/css"> -->
+  <!-- <link href="https://fonts.googleapis.com/css?family=Roboto:400,300,300italic,400italic" rel="stylesheet" type="text/css"> -->
+  <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+  <style type="text/css">
+    @font-face{font-family:futura-pt; src:url("css/fonts/FuturaPTBold.otf") format("woff");font-weight:500;font-style:normal;}
+    @font-face{font-family:futura-pt-light; src:url("css/fonts/FuturaPTBook.otf") format("woff");font-weight:lighter;font-style:normal;}
+    @font-face{font-family:futura-pt-italic; src:url("css/fonts/FuturaPTBookOblique.otf") format("woff");font-weight:400;font-style:italic;}
+}
+
+  </style>
+  
+<link rel="stylesheet" href="/css/style.css">
+
+
+  
+<script src="/js/jquery-3.1.1.min.js"></script>
+
+  
+<script src="/js/bootstrap.js"></script>
+
+
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" href="/css/bootstrap.css" >
+
+  
+    
+<link rel="stylesheet" href="/css/dialog.css">
+
+  
+
+  
+
+  
+    <link rel="stylesheet" href="/css/header-post.css" >
+  
+
+  
+  
+  
+
+<meta name="generator" content="Hexo 4.1.1"></head>
+
+
+
+  <body data-spy="scroll" data-target="#toc" data-offset="50">
+
+
+  
+  <div id="container">
+    <div id="wrap">
+      
+        <header>
+
+    <div id="allheader" class="navbar navbar-default navbar-static-top" role="navigation">
+        <div class="navbar-inner">
+          
+          <div class="container"> 
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+
+            
+              <a class="brand" style="border-width: 0;">
+                <p>Young</p>
+              </a>
+            
+            
+            <div class="navbar-collapse collapse">
+              <ul class="hnav navbar-nav">
+                
+                  <li> <a class="main-nav-link" href="/">首页</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/archives">归档</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/categories">分类</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/tags">标签</a> </li>
+                
+                  <li><div id="search-form-wrap">
+
+    <form class="search-form">
+        <input type="text" class="ins-search-input search-form-input" placeholder="" />
+        <button type="submit" class="search-form-submit"></button>
+    </form>
+    <div class="ins-search">
+    <div class="ins-search-mask"></div>
+    <div class="ins-search-container">
+        <div class="ins-input-wrapper">
+            <input type="text" class="ins-search-input" placeholder="请输入关键词..." />
+            <span class="ins-close ins-selectable"><i class="fa fa-times-circle"></i></span>
+        </div>
+        <div class="ins-section-wrapper">
+            <div class="ins-section-container"></div>
+        </div>
+    </div>
+</div>
+<script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(无标题)',
+        },
+        ROOT_URL: '/',
+        CONTENT_URL: '/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+
+</div></li>
+            </div>
+          </div>
+                
+      </div>
+    </div>
+
+</header>
+
+
+
+      
+            
+      <div id="content" class="outer">
+        
+          <section id="main" style="float:none;"> <article id="post-Dubbo-Provider" style="width: 100%; float:left;" class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" class="article-title" itemprop="name">
+      Dubbo Provider
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/01/08/Dubbo-Provider/" class="article-date">
+	  <time datetime="2020-01-08T09:08:16.000Z" itemprop="datePublished">2020-01-08</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/RPC/">RPC</a>
+
+      
+	<a class="article-views">
+	<span id="busuanzi_container_page_pv">
+		阅读量<span id="busuanzi_value_page_pv"></span>
+	</span>
+	</a>
+
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <img src="/2020/01/08/Dubbo-Provider/provider.jpg" class="" title="provider">
+
+<blockquote>
+<p>本文所有讨论都基于Dubbo 2.7.2</p>
+</blockquote>
+<p><a href="">上一篇</a>文章介绍了Dubbo的SPI机制，这篇文章继续介绍Dubbo Provider暴露服务的过程。暴露服务，顾名思义，就是要让服务端知道自己能提供哪些服务，包含服务的ip、端口、实例名和方法名等。那么接下来就开始服务暴露过程吧，开始之前，先贴上我们的样例代码及其配置。</p>
+<h3 id="配置"><a href="#配置" class="headerlink" title="配置"></a>配置</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">DemoService</span> </span>&#123;</span><br><span class="line">    <span class="function">String <span class="title">sayHello</span><span class="params">(String name)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">go</span><span class="params">(<span class="keyword">int</span> step)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">DemoServiceImpl</span> <span class="keyword">implements</span> <span class="title">DemoService</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">sayHello</span><span class="params">(String name)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">"Hello "</span> + name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">go</span><span class="params">(<span class="keyword">int</span> step)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"************"</span>);</span><br><span class="line">        System.out.println(<span class="string">"step = "</span> + step);</span><br><span class="line">        System.out.println(<span class="string">"************"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>provider的xml配置如下：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- 提供方应用信息，用于计算依赖关系 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dubbo:application</span> <span class="attr">name</span>=<span class="string">"dubbo-example-provider"</span>/&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">&lt;!-- 使用zookeeper注册中心暴露服务地址 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dubbo:registry</span> <span class="attr">address</span>=<span class="string">"zookeeper://127.0.0.1:2181"</span>/&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">&lt;!-- 用dubbo协议在20880端口暴露服务 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dubbo:protocol</span> <span class="attr">name</span>=<span class="string">"dubbo"</span> <span class="attr">port</span>=<span class="string">"20880"</span>/&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">"demoService"</span> <span class="attr">class</span>=<span class="string">"com.young.dubbo.provider.DemoServiceImpl"</span>/&gt;</span></span><br><span class="line"><span class="comment">&lt;!-- 声明需要暴露的服务接口，默认使用dubbo协议 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dubbo:service</span> <span class="attr">interface</span>=<span class="string">"com.young.dubbo.api.DemoService"</span> <span class="attr">ref</span>=<span class="string">"demoService"</span> &gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">dubbo:method</span> <span class="attr">name</span>=<span class="string">"go"</span> <span class="attr">timeout</span>=<span class="string">"50"</span> <span class="attr">retries</span>=<span class="string">"2"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dubbo:service</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>依照Spring的惯例，xml的配置都会解析到实例中，比如有配置&lt;dubbo:xxx /&gt;，那么它对应的实例名就是XxxConfig，下面就是部分配置和实例的对应关系</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>实例</th>
+<th>若配置存在多个，则对应List</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>&lt;dubbo:application /&gt;</td>
+<td>ApplicationConfig</td>
+<td>-</td>
+</tr>
+<tr>
+<td>&lt;dubbo:registry /&gt;</td>
+<td>RegistryConfig</td>
+<td>List&lt;RegistryConfig&gt;</td>
+</tr>
+<tr>
+<td>&lt;dubbo:protocol /&gt;</td>
+<td>ProtocolConfig</td>
+<td>List&lt;ProtocolConfig&gt;</td>
+</tr>
+<tr>
+<td>&lt;dubbo:service /&gt;</td>
+<td>ServiceConfig</td>
+<td>-</td>
+</tr>
+</tbody></table>
+<h3 id="Invoker"><a href="#Invoker" class="headerlink" title="Invoker"></a>Invoker</h3><p><code>Invoker</code>是对Provider提供的服务的一种抽象，Provider以Invoker为单位向Consumer暴露服务，Consumer以Invoker为单位引用服务。以上面的代码为例，DemoServiceImpl及其包含的方法最终会被转化为Invoker的一部分信息提供给Consumer。Dubbo支持多协议，多注册中心暴露服务，因此Invoker并不单单是对Provider端服务实例的包装，还要面向协议和注册中心。当要暴露一个服务时，需要考虑三个元素：RegisterCenter，Protocol和Service。</p>
+<center>Export info = (RegisterCenter, Protocol, Service)</center>
+
+<blockquote>
+<p>有一点需要说明：这里所说的三元素，是指Provider会给<strong>每一种协议每一个注册中心</strong>生成对应的注册信息，比如两个注册中心Zookeeper和Consul，两种协议Dubbo和rmi，那么Provider会生成4份信息，(zk, dubbo)(zk, rmi)和(consul, dubbo)(consul, rmi)并分别保存到注册中心。而对于Service实例，Provider一个进程只有一份，比如只会创建DemoServiceImpl一个实例。</p>
+</blockquote>
+<img src="/2020/01/08/Dubbo-Provider/invoker.png" class="" title="invoker">
+
+<h3 id="暴露服务"><a href="#暴露服务" class="headerlink" title="暴露服务"></a>暴露服务</h3><p>Provider暴露服务包括两个过程，1. 开启服务；2. 注册服务；</p>
+<h4 id="开启服务"><a href="#开启服务" class="headerlink" title="开启服务"></a>开启服务</h4><p>这个步骤涉及到Invoker里的Protocol和Service。</p>
+<p>Service很简单，就是Provider提供外部调用的方法，对应的配置就是<strong>&lt;bean id=”demoService” class=”com.young.dubbo.provider.DemoServiceImpl”/&gt;</strong>，会保存在<code>ServiceConfig</code>的ref属性里。当Consumer进行rpc调用时，最后在Provider中调用的就是这个实例的方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> T ref;</span><br></pre></td></tr></table></figure>
+
+<p>这里的Protocol在Dubbo里包含的信息比较丰富，包括Codec，Serialization，Connection，Network等一系列与数据传输、网络交互相关的概念，我们可以这样简单的理解：Provider需要告知Consumer，RPC数据的样式是什么以及如何传输。其对应的配置是<strong>&lt;dubbo:protocol name=”dubbo” port=”20880”/&gt;</strong>，因为支持多协议暴露服务，所以可以有多个，缺省采用dubbo协议。这个配置解析的URL如下：</p>
+<blockquote>
+<p><mark>dubbo</mark>://10.2.24.195:20880/com.young.dubbo.api.DemoService?anyhost=true&amp;….&amp;<mark>interface=com.young.dubbo.api.DemoService&amp;methods=sayHello,go&amp;go.retries=2&amp;go.timeout=50</mark>&amp;pid=38144&amp;register=true&amp;release=2.7.2&amp;side=provider&amp;timestamp=1578549887940</p>
+</blockquote>
+<p>根据SPI机制，<code>DubboProtocol</code>会负责具体的开启服务的工作，包括打开Socket，创建Codec等信息，等待Consumer的调用。</p>
+<p>启动服务的过程如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//RegistryProtocol的方法</span></span><br><span class="line"><span class="keyword">private</span> &lt;T&gt; <span class="function">ExporterChangeableWrapper&lt;T&gt; <span class="title">doLocalExport</span><span class="params">(<span class="keyword">final</span> Invoker&lt;T&gt; originInvoker, URL providerUrl)</span> </span>&#123;</span><br><span class="line">    String key = getCacheKey(originInvoker);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (ExporterChangeableWrapper&lt;T&gt;) bounds.computeIfAbsent(key, s -&gt; &#123;</span><br><span class="line">        Invoker&lt;?&gt; invokerDelegate = <span class="keyword">new</span> InvokerDelegate&lt;&gt;(originInvoker, providerUrl);</span><br><span class="line">        <span class="comment">//这里的protocol实际就是DubboProtocol</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ExporterChangeableWrapper&lt;&gt;((Exporter&lt;T&gt;) protocol.export(invokerDelegate), originInvoker);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//DubboProtocol的export()</span></span><br><span class="line"><span class="keyword">public</span> &lt;T&gt; <span class="function">Exporter&lt;T&gt; <span class="title">export</span><span class="params">(Invoker&lt;T&gt; invoker)</span> <span class="keyword">throws</span> RpcException </span>&#123;</span><br><span class="line">    URL url = invoker.getUrl();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//注意这里的key，有port，path，version，group构成，只有这四个参数完全相同，才能调用服务成功</span></span><br><span class="line">    String key = serviceKey(url);</span><br><span class="line">    <span class="comment">//invoker可以看成是ref的代理</span></span><br><span class="line">    DubboExporter&lt;T&gt; exporter = <span class="keyword">new</span> DubboExporter&lt;T&gt;(invoker, key, exporterMap);</span><br><span class="line">    <span class="comment">//保存暴露的服务，当有RPC调用时，要从这里获取要调用的服务</span></span><br><span class="line">    exporterMap.put(key, exporter);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//export an stub service for dispatching event</span></span><br><span class="line">    Boolean isStubSupportEvent = url.getParameter(STUB_EVENT_KEY, DEFAULT_STUB_EVENT);</span><br><span class="line">    Boolean isCallbackservice = url.getParameter(IS_CALLBACK_SERVICE, <span class="keyword">false</span>);</span><br><span class="line">    <span class="keyword">if</span> (isStubSupportEvent &amp;&amp; !isCallbackservice) &#123;</span><br><span class="line">        String stubServiceMethods = url.getParameter(STUB_EVENT_METHODS_KEY);</span><br><span class="line">        <span class="keyword">if</span> (stubServiceMethods == <span class="keyword">null</span> || stubServiceMethods.length() == <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (logger.isWarnEnabled()) &#123;</span><br><span class="line">                logger.warn(<span class="keyword">new</span> IllegalStateException(<span class="string">"consumer ["</span> + url.getParameter(INTERFACE_KEY) +</span><br><span class="line">                        <span class="string">"], has set stubproxy support event ,but no stub methods founded."</span>));</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            stubServiceMethodsMap.put(url.getServiceKey(), stubServiceMethods);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//启动服务，打开Socket等</span></span><br><span class="line">    openServer(url);</span><br><span class="line">    optimizeSerialization(url);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> exporter;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="注册服务"><a href="#注册服务" class="headerlink" title="注册服务"></a>注册服务</h4><p>Dubbo里是在启动后才开始的注册过程，并没有同时进行。要注册服务，我们就需要获取注册相关的信息，xml里对应的配置是<strong>&lt;dubbo:registry address=”zookeeper://127.0.0.1:2181”/&gt;</strong>，因为Dubbo支持多注册中心，所以这个配置可以有多个，每个对应一个注册中心，比如还能配置Consul，Redis等。这个配置解析的URL如下：</p>
+<blockquote>
+<p><mark>registry</mark>://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-example-provider&amp;dubbo=2.0.2&amp;pid=27797&amp;<mark>registry=zookeeper</mark>&amp;release=2.7.2&amp;timestamp=1578477233374&amp;<mark>export=……</mark></p>
+</blockquote>
+<p>其中两个信息较为关键，第一条解决了谁负责注册服务的问题，根据SPI机制，由<code>RegistryProtocol</code>负责；第二条解决了向哪里注册的问题，本例子是向Zookeeper注册；</p>
+<ul>
+<li>Protocol为<strong>registry</strong>；</li>
+<li><strong>registry=zookeeper</strong>；</li>
+</ul>
+<p>既然要向Zookeeper注册，那么就得再生成一个新的URL：</p>
+<blockquote>
+<p><mark>zookeeper</mark>://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-example-provider&amp;dubbo=2.0.2&amp;interface=org.apache.dubbo.registry.RegistryService&amp;pid=38260&amp;release=2.7.2&amp;timestamp=1578550779675</p>
+</blockquote>
+<p>这个URL的关键信息也已经标黄：根据protocol=zookeeper，会创建与zookeeper相关的实例，比如<code>ZookeeperRegistryFactory</code>，<code>ZookeeperRegistry</code>等，最后通过这些事例完成与Zookeeper的交互。</p>
+<p>注册的过程如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">register</span><span class="params">(URL registryUrl, URL registeredProviderUrl)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//这个registryUrl就是上面zookeeper协议的url，registeredProviderUrl是需要注册的内容，其实就是Protocol和Service的信息</span></span><br><span class="line">    Registry registry = registryFactory.getRegistry(registryUrl);</span><br><span class="line">    <span class="comment">//根据SPI，这里的registry是ZookeeperRegistry，里面封装了zk客户端</span></span><br><span class="line">    registry.register(registeredProviderUrl);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>ZookeeperRegistry是FailbackRegistry的子类，因此支持失败重试</p>
+</blockquote>
+<h4 id="过程"><a href="#过程" class="headerlink" title="过程"></a>过程</h4><img src="/2020/01/08/Dubbo-Provider/exporter.png" class="" title="exporter">
+
+
+<h3 id="相关源码"><a href="#相关源码" class="headerlink" title="相关源码"></a>相关源码</h3><p>Provider的关键配置是<strong>&lt;dubbo:service … /&gt;</strong>，这个配置声明了要暴露的服务，所以服务暴露的过程就是从<code>ServiceConfig</code>的<em>export()</em>开始。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">export</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    checkAndUpdateSubConfigs();</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//根据配置中的export决定是否要暴露这个实例，目前这个参数只能作用于实例，不能作用于方法</span></span><br><span class="line">    <span class="keyword">if</span> (!shouldExport()) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//根据delay配置，延迟暴露</span></span><br><span class="line">    <span class="keyword">if</span> (shouldDelay()) &#123;</span><br><span class="line">        delayExportExecutor.schedule(<span class="keyword">this</span>::doExport, getDelay(), TimeUnit.MILLISECONDS);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">//开始暴露</span></span><br><span class="line">        doExport();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doExportUrls</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">//这里实际上就是将&lt;dubbo:registry /&gt;的配置解析为URL</span></span><br><span class="line">    <span class="comment">//返回注册中心list</span></span><br><span class="line">    List&lt;URL&gt; registryURLs = loadRegistries(<span class="keyword">true</span>);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//protocols为配置的多个协议</span></span><br><span class="line">    <span class="keyword">for</span> (ProtocolConfig protocolConfig : protocols) &#123;</span><br><span class="line">        String pathKey = URL.buildKey(getContextPath(protocolConfig).map(p -&gt; p + <span class="string">"/"</span> + path).orElse(path), group, version);</span><br><span class="line">        ProviderModel providerModel = <span class="keyword">new</span> ProviderModel(pathKey, ref, interfaceClass);</span><br><span class="line">        ApplicationModel.initProviderModel(pathKey, providerModel);</span><br><span class="line">        </span><br><span class="line">        <span class="comment">//对每一种协议进行注册</span></span><br><span class="line">        doExportUrlsFor1Protocol(protocolConfig, registryURLs);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doExportUrlsFor1Protocol</span><span class="params">(ProtocolConfig protocolConfig, List&lt;URL&gt; registryURLs)</span> </span>&#123;</span><br><span class="line">    String name = protocolConfig.getName();</span><br><span class="line">    <span class="keyword">if</span> (StringUtils.isEmpty(name)) &#123;</span><br><span class="line">        name = DUBBO;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//将xml中相关配置，构造需要暴露的URL，这里省略了组装参数的过程</span></span><br><span class="line">    ......</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//根据上面的参数，构造新的URL，这个URL代表了要暴露的服务</span></span><br><span class="line">    <span class="comment">//这个url是 dubbo://.......</span></span><br><span class="line">    URL url = <span class="keyword">new</span> URL(name, host, port, getContextPath(protocolConfig).map(p -&gt; p + <span class="string">"/"</span> + path).orElse(path), map);</span><br><span class="line"></span><br><span class="line">    String scope = url.getParameter(SCOPE_KEY);</span><br><span class="line">    <span class="comment">// don't export when none is configured</span></span><br><span class="line">    <span class="keyword">if</span> (!SCOPE_NONE.equalsIgnoreCase(scope)) &#123;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// export to local if the config is not remote (export to remote only when config is remote)</span></span><br><span class="line">        <span class="keyword">if</span> (!SCOPE_REMOTE.equalsIgnoreCase(scope)) &#123;</span><br><span class="line">            exportLocal(url);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// export to remote if the config is not local (export to local only when config is local)</span></span><br><span class="line">        <span class="keyword">if</span> (!SCOPE_LOCAL.equalsIgnoreCase(scope)) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!isOnlyInJvm() &amp;&amp; logger.isInfoEnabled()) &#123;</span><br><span class="line">                logger.info(<span class="string">"Export dubbo service "</span> + interfaceClass.getName() + <span class="string">" to url "</span> + url);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (CollectionUtils.isNotEmpty(registryURLs)) &#123;</span><br><span class="line">                <span class="keyword">for</span> (URL registryURL : registryURLs) &#123;</span><br><span class="line">                </span><br><span class="line">                    ......</span><br><span class="line"></span><br><span class="line">                    <span class="comment">// For providers, this is used to enable custom proxy to generate invoker</span></span><br><span class="line">                    String proxy = url.getParameter(PROXY_KEY);</span><br><span class="line">                    <span class="keyword">if</span> (StringUtils.isNotEmpty(proxy)) &#123;</span><br><span class="line">                        registryURL = registryURL.addParameter(PROXY_KEY, proxy);</span><br><span class="line">                    &#125;</span><br><span class="line">                    </span><br><span class="line">                    <span class="comment">//ref就是xml配置中的bean，我们的例子中是DemoServiceImpl实例，最后真正接收RPC调用的东西</span></span><br><span class="line">                    <span class="comment">//这里使用代理模式，创建了一个ref的代理</span></span><br><span class="line">                    <span class="comment">//这里在URL添加了一个parameter：export=dubbo://.....</span></span><br><span class="line">                    Invoker&lt;?&gt; invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));</span><br><span class="line">                    <span class="comment">//这里实际上又代理了一层，可能就是想把配置保存一份吧</span></span><br><span class="line">                    DelegateProviderMetaDataInvoker wrapperInvoker = <span class="keyword">new</span> DelegateProviderMetaDataInvoker(invoker, <span class="keyword">this</span>);</span><br><span class="line">                    </span><br><span class="line">                    <span class="comment">//开始暴露</span></span><br><span class="line">                    <span class="comment">//这里wrapperInvoker的URL实际上就是register://...，所以这里会走入RegistryProtocol</span></span><br><span class="line">                    Exporter&lt;?&gt; exporter = protocol.export(wrapperInvoker);</span><br><span class="line">                    exporters.add(exporter);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                Invoker&lt;?&gt; invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, url);</span><br><span class="line">                DelegateProviderMetaDataInvoker wrapperInvoker = <span class="keyword">new</span> DelegateProviderMetaDataInvoker(invoker, <span class="keyword">this</span>);</span><br><span class="line"></span><br><span class="line">                Exporter&lt;?&gt; exporter = protocol.export(wrapperInvoker);</span><br><span class="line">                exporters.add(exporter);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">/**</span></span><br><span class="line"><span class="comment">             * <span class="doctag">@since</span> 2.7.0</span></span><br><span class="line"><span class="comment">             * ServiceData Store</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">            MetadataReportService metadataReportService = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">if</span> ((metadataReportService = getMetadataReportService()) != <span class="keyword">null</span>) &#123;</span><br><span class="line">                metadataReportService.publishProvider(url);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">this</span>.urls.add(url);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//RegistryProtocol</span></span><br><span class="line"><span class="keyword">public</span> &lt;T&gt; <span class="function">Exporter&lt;T&gt; <span class="title">export</span><span class="params">(<span class="keyword">final</span> Invoker&lt;T&gt; originInvoker)</span> <span class="keyword">throws</span> RpcException </span>&#123;</span><br><span class="line">    URL registryUrl = getRegistryUrl(originInvoker);</span><br><span class="line">    <span class="comment">// url to export locally</span></span><br><span class="line">    URL providerUrl = getProviderUrl(originInvoker);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> URL overrideSubscribeUrl = getSubscribedOverrideUrl(providerUrl);</span><br><span class="line">    <span class="keyword">final</span> OverrideListener overrideSubscribeListener = <span class="keyword">new</span> OverrideListener(overrideSubscribeUrl, originInvoker);</span><br><span class="line">    overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);</span><br><span class="line"></span><br><span class="line">    providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//暴露 invoker</span></span><br><span class="line">    <span class="keyword">final</span> ExporterChangeableWrapper&lt;T&gt; exporter = doLocalExport(originInvoker, providerUrl);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// url to registry</span></span><br><span class="line">    <span class="keyword">final</span> Registry registry = getRegistry(originInvoker);</span><br><span class="line">    <span class="keyword">final</span> URL registeredProviderUrl = getRegisteredProviderUrl(providerUrl, registryUrl);</span><br><span class="line">    ProviderInvokerWrapper&lt;T&gt; providerInvokerWrapper = ProviderConsumerRegTable.registerProvider(originInvoker,</span><br><span class="line">            registryUrl, registeredProviderUrl);</span><br><span class="line">    <span class="comment">//to judge if we need to delay publish</span></span><br><span class="line">    <span class="keyword">boolean</span> register = registeredProviderUrl.getParameter(<span class="string">"register"</span>, <span class="keyword">true</span>);</span><br><span class="line">    <span class="keyword">if</span> (register) &#123;</span><br><span class="line">        <span class="comment">//注册服务</span></span><br><span class="line">        register(registryUrl, registeredProviderUrl);</span><br><span class="line">        providerInvokerWrapper.setReg(<span class="keyword">true</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Deprecated! Subscribe to override rules in 2.6.x or before.</span></span><br><span class="line">    registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);</span><br><span class="line"></span><br><span class="line">    exporter.setRegisterUrl(registeredProviderUrl);</span><br><span class="line">    exporter.setSubscribeUrl(overrideSubscribeUrl);</span><br><span class="line">    <span class="comment">//Ensure that a new exporter instance is returned every time export</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> DestroyableExporter&lt;&gt;(exporter);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接下来看一下服务器启动的过程</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//DubboProtocol.java</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> ExchangeServer <span class="title">createServer</span><span class="params">(URL url)</span> </span>&#123;</span><br><span class="line">    url = URLBuilder.from(url)</span><br><span class="line">            <span class="comment">// send readonly event when server closes, it's enabled by default</span></span><br><span class="line">            .addParameterIfAbsent(CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString())</span><br><span class="line">            <span class="comment">// enable heartbeat by default</span></span><br><span class="line">            .addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT))</span><br><span class="line">            .addParameter(CODEC_KEY, DubboCodec.NAME)</span><br><span class="line">            .build();</span><br><span class="line">    String str = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//这里判断支不支持Netty，Mina等网络服务器</span></span><br><span class="line">    <span class="keyword">if</span> (str != <span class="keyword">null</span> &amp;&amp; str.length() &gt; <span class="number">0</span> &amp;&amp; !ExtensionLoader.getExtensionLoader(Transporter<span class="class">.<span class="keyword">class</span>).<span class="title">hasExtension</span>(<span class="title">str</span>)) </span>&#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(<span class="string">"Unsupported server type: "</span> + str + <span class="string">", url: "</span> + url);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ExchangeServer server;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        server = Exchangers.bind(url, requestHandler);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (RemotingException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(<span class="string">"Fail to start server(url: "</span> + url + <span class="string">") "</span> + e.getMessage(), e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    str = url.getParameter(CLIENT_KEY);</span><br><span class="line">    <span class="keyword">if</span> (str != <span class="keyword">null</span> &amp;&amp; str.length() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        Set&lt;String&gt; supportedTypes = ExtensionLoader.getExtensionLoader(Transporter<span class="class">.<span class="keyword">class</span>).<span class="title">getSupportedExtensions</span>()</span>;</span><br><span class="line">        <span class="keyword">if</span> (!supportedTypes.contains(str)) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(<span class="string">"Unsupported client type: "</span> + str);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> server;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ExchangeServer <span class="title">bind</span><span class="params">(URL url, ExchangeHandler handler)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (url == <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"url == null"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (handler == <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"handler == null"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    url = url.addParameterIfAbsent(Constants.CODEC_KEY, <span class="string">"exchange"</span>);</span><br><span class="line">    <span class="keyword">return</span> getExchanger(url).bind(url, handler);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//当前版本Exchanger默认只有一个实现HeaderExchanger</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> ExchangeServer <span class="title">bind</span><span class="params">(URL url, ExchangeHandler handler)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="comment">//绑定网络传输层</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> HeaderExchangeServer(Transporters.bind(url, <span class="keyword">new</span> DecodeHandler(<span class="keyword">new</span> HeaderExchangeHandler(handler))));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//Transporter是对网络层的封装，会根据具体配置选择Netty，Mina等</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Server <span class="title">bind</span><span class="params">(URL url, ChannelHandler... handlers)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (url == <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"url == null"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (handlers == <span class="keyword">null</span> || handlers.length == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"handlers == null"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    ChannelHandler handler;</span><br><span class="line">    <span class="keyword">if</span> (handlers.length == <span class="number">1</span>) &#123;</span><br><span class="line">        handler = handlers[<span class="number">0</span>];</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        handler = <span class="keyword">new</span> ChannelHandlerDispatcher(handlers);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//现在版本会选择Netty4</span></span><br><span class="line">    <span class="keyword">return</span> getTransporter().bind(url, handler);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> Server <span class="title">bind</span><span class="params">(URL url, ChannelHandler listener)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="comment">//启动Netty4</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> NettyServer(url, listener);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//熟悉的启动Netty的代码</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">doOpen</span><span class="params">()</span> <span class="keyword">throws</span> Throwable </span>&#123;</span><br><span class="line">    bootstrap = <span class="keyword">new</span> ServerBootstrap();</span><br><span class="line"></span><br><span class="line">    bossGroup = <span class="keyword">new</span> NioEventLoopGroup(<span class="number">1</span>, <span class="keyword">new</span> DefaultThreadFactory(<span class="string">"NettyServerBoss"</span>, <span class="keyword">true</span>));</span><br><span class="line">    workerGroup = <span class="keyword">new</span> NioEventLoopGroup(getUrl().getPositiveParameter(IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),</span><br><span class="line">            <span class="keyword">new</span> DefaultThreadFactory(<span class="string">"NettyServerWorker"</span>, <span class="keyword">true</span>));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> NettyServerHandler nettyServerHandler = <span class="keyword">new</span> NettyServerHandler(getUrl(), <span class="keyword">this</span>);</span><br><span class="line">    channels = nettyServerHandler.getChannels();</span><br><span class="line"></span><br><span class="line">    bootstrap.group(bossGroup, workerGroup)</span><br><span class="line">            .channel(NioServerSocketChannel<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">            .<span class="title">childOption</span>(<span class="title">ChannelOption</span>.<span class="title">TCP_NODELAY</span>, <span class="title">Boolean</span>.<span class="title">TRUE</span>)</span></span><br><span class="line"><span class="class">            .<span class="title">childOption</span>(<span class="title">ChannelOption</span>.<span class="title">SO_REUSEADDR</span>, <span class="title">Boolean</span>.<span class="title">TRUE</span>)</span></span><br><span class="line"><span class="class">            .<span class="title">childOption</span>(<span class="title">ChannelOption</span>.<span class="title">ALLOCATOR</span>, <span class="title">PooledByteBufAllocator</span>.<span class="title">DEFAULT</span>)</span></span><br><span class="line"><span class="class">            .<span class="title">childHandler</span>(<span class="title">new</span> <span class="title">ChannelInitializer</span>&lt;<span class="title">NioSocketChannel</span>&gt;() </span>&#123;</span><br><span class="line">                <span class="meta">@Override</span></span><br><span class="line">                <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">initChannel</span><span class="params">(NioSocketChannel ch)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">                    <span class="comment">// <span class="doctag">FIXME:</span> should we use getTimeout()?</span></span><br><span class="line">                    <span class="keyword">int</span> idleTimeout = UrlUtils.getIdleTimeout(getUrl());</span><br><span class="line">                    NettyCodecAdapter adapter = <span class="keyword">new</span> NettyCodecAdapter(getCodec(), getUrl(), NettyServer.<span class="keyword">this</span>);</span><br><span class="line">                    ch.pipeline()<span class="comment">//.addLast("logging",new LoggingHandler(LogLevel.INFO))//for debug</span></span><br><span class="line">                            .addLast(<span class="string">"decoder"</span>, adapter.getDecoder())</span><br><span class="line">                            .addLast(<span class="string">"encoder"</span>, adapter.getEncoder())</span><br><span class="line">                            .addLast(<span class="string">"server-idle-handler"</span>, <span class="keyword">new</span> IdleStateHandler(<span class="number">0</span>, <span class="number">0</span>, idleTimeout, MILLISECONDS))</span><br><span class="line">                            .addLast(<span class="string">"handler"</span>, nettyServerHandler);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">    <span class="comment">// bind</span></span><br><span class="line">    ChannelFuture channelFuture = bootstrap.bind(getBindAddress());</span><br><span class="line">    channelFuture.syncUninterruptibly();</span><br><span class="line">    channel = channelFuture.channel();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<hr>
+<p><em>参考文献</em></p>
+<p><a href="http://dubbo.apache.org/zh-cn/docs/source_code_guide/export-service.html" target="_blank" rel="noopener">http://dubbo.apache.org/zh-cn/docs/source_code_guide/export-service.html</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      
+      
+      
+      <div>
+        <ul class="post-copyright">
+          <li class="post-copyright-author">
+          <strong>本文作者:  </strong>Yangpeng</a>
+          </li>
+          <li class="post-copyright-link">
+          <strong>本文链接:  </strong>
+          <a href="/2020/01/08/Dubbo-Provider/" target="_blank" title="Dubbo Provider">http://youngest.cool/2020/01/08/Dubbo-Provider/</a>
+          </li>
+          <li class="post-copyright-license">
+            <strong>版权声明:   </strong>
+            本博客所有文章除特别声明外，均采用 <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" title="Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)">CC BY-NC-ND 4.0</a>
+            许可协议。转载请注明出处
+          </li>
+         
+        </ul>
+<div>
+
+      
+      
+        
+	<div id="comment">
+		<!-- 国内Valine评论系统 -->
+		<div id="lv-container" data-id="city" data-uid="Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz" style="margin-top:45px"></div>
+		<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+		<script src='//unpkg.com/valine/dist/Valine.min.js'></script>
+		<script>
+        new Valine({
+            el: '#lv-container',
+            appId: 'Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz',
+            appKey: 'IOJj3idrR64NvJ7CM41rhDHT',
+            notify: false, 
+    		verify: false, 
+    		avatar: 'monsterid', 
+    		placeholder: '说点什么吧!'
+        })
+        </script>
+	
+
+	</div>
+
+
+
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2020/01/08/Dubbo-Consumer/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">上一篇</strong>
+      <div class="article-nav-title">
+        
+          Dubbo Consumer
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2020/01/07/Dubbo-SPI%E6%9C%BA%E5%88%B6/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">Dubbo SPI</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+<!-- Table of Contents -->
+
+  <aside id="toc-sidebar" class="toc-hide">
+    <div id="toc" class="toc-article">
+    <strong class="toc-title">文章目录</strong>
+    
+        <ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#配置"><span class="nav-number">1.</span> <span class="nav-text">配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Invoker"><span class="nav-number">2.</span> <span class="nav-text">Invoker</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#暴露服务"><span class="nav-number">3.</span> <span class="nav-text">暴露服务</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#开启服务"><span class="nav-number">3.1.</span> <span class="nav-text">开启服务</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#注册服务"><span class="nav-number">3.2.</span> <span class="nav-text">注册服务</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#过程"><span class="nav-number">3.3.</span> <span class="nav-text">过程</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#相关源码"><span class="nav-number">4.</span> <span class="nav-text">相关源码</span></a></li></ol>
+    
+    </div>
+  </aside>
+
+</section>
+        
+      </div>
+      
+      <footer id="footer">
+  
+
+  <div class="container">
+      	<div class="row">
+	      <p> Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/iTimeTraveler/hexo-theme-hiker" target="_blank">Hexo-theme-hiker</a> </p>
+	      <p id="copyRightEn">Copyright &copy; 2013 - 2020 Young All Rights Reserved.</p>
+	      
+	      
+    		<p class="busuanzi_uv">
+				访客数 : <span id="busuanzi_value_site_uv"></span> |  
+				访问量 : <span id="busuanzi_value_site_pv"></span>
+		    </p>
+  		   
+		</div>
+
+		
+  </div>
+</footer>
+
+
+<!-- min height -->
+
+<script>
+    var wrapdiv = document.getElementById("wrap");
+    var contentdiv = document.getElementById("content");
+    var allheader = document.getElementById("allheader");
+
+    wrapdiv.style.minHeight = document.body.offsetHeight + "px";
+    if (allheader != null) {
+      contentdiv.style.minHeight = document.body.offsetHeight - allheader.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    } else {
+      contentdiv.style.minHeight = document.body.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    }
+</script>
+    </div>
+    <!-- <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+  
+    <a href="/tags" class="mobile-nav-link">Tags</a>
+  
+</nav> -->
+    
+
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/scripts.js"></script>
+
+
+
+
+
+  
+<script src="/js/dialog.js"></script>
+
+
+
+
+
+
+
+
+
+	<div style="display: none;">
+    <script src="https://s95.cnzz.com/z_stat.php?id=1260716016&web_id=1260716016" language="JavaScript"></script>
+  </div>
+
+
+
+	<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
+	</script>
+
+
+
+
+
+
+  </div>
+
+  <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="myModalLabel">设置</h2>
+      </div>
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+
+
+      <div class="modal-body">
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne" onclick="javascript:setFontSize();" aria-expanded="true" aria-controls="collapseOne">
+              正文字号大小
+            </a>
+          </div>
+          <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+          <div class="panel-body">
+            您已调整页面字体大小
+          </div>
+        </div>
+      
+
+
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" onclick="javascript:setBackground();" aria-expanded="true" aria-controls="collapseTwo">
+              夜间护眼模式
+            </a>
+        </div>
+          <div id="collapseTwo" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingTwo">
+          <div class="panel-body">
+            夜间模式已经开启，再次单击按钮即可关闭 
+          </div>
+        </div>
+
+        <div>
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseThree" aria-expanded="true" aria-controls="collapseThree">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;关 于&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a>
+        </div>
+         <div id="collapseThree" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingThree">
+          <div class="panel-body">
+            Young
+          </div>
+          <div class="panel-body">
+            Copyright © 2020 Yangpeng All Rights Reserved.
+          </div>
+        </div>
+      </div>
+
+
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <div class="modal-footer">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+  
+  <a id="rocket" href="#top" class=""></a>
+  <script type="text/javascript" src="/js/totop.js?v=1.0.0" async=""></script>
+  
+    <a id="menu-switch"><i class="fa fa-bars fa-lg"></i></a>
+  
+</body>
+</html>
