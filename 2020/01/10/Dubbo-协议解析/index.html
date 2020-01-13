@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>dubbo 协议解析 | Young</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  
+    <meta name="keywords" content="AABBCC" />
+  
+  
+  
+  
+  <meta name="description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇分析了Dubbo暴露服务的过程，当Provider服务启动后，网络传输层会使用Netty、Mina等框架接收处理数据，这一篇详细介绍一下这个处理Dubbo协议数据的过程。 协议格式Dubbo协议格式如下：Header(16 bytes) + Body(n bytes)    Magic (2 byte) 常数&#x3D;0xdabb  Req&#x2F;Res">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dubbo 协议解析">
+<meta property="og:url" content="http://youngest.cool/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="Young">
+<meta property="og:description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇分析了Dubbo暴露服务的过程，当Provider服务启动后，网络传输层会使用Netty、Mina等框架接收处理数据，这一篇详细介绍一下这个处理Dubbo协议数据的过程。 协议格式Dubbo协议格式如下：Header(16 bytes) + Body(n bytes)    Magic (2 byte) 常数&#x3D;0xdabb  Req&#x2F;Res">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youngest.cool/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/header.jpg">
+<meta property="og:image" content="http://youngest.cool/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/protocol.png">
+<meta property="og:image" content="http://youngest.cool/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/exchanger.png">
+<meta property="og:image" content="http://youngest.cool/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/handler.png">
+<meta property="article:published_time" content="2020-01-10T04:00:05.000Z">
+<meta property="article:modified_time" content="2020-01-13T07:16:45.053Z">
+<meta property="article:author" content="Yangpeng">
+<meta property="article:tag" content="Dubbo">
+<meta property="article:tag" content="Protocol">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youngest.cool/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/header.jpg">
+  
+    <link rel="alternate" href="/atom.xml" title="Young" type="application/atom+xml">
+  
+
+  
+
+  <link rel="icon" href="/css/images/kkk.png">
+  <link rel="apple-touch-icon" href="/css/images/kkk.png">
+  <!-- google的font加载太慢了，先注掉。 https://cdn.baomitu.com/index/fonts 这里可以找到字体库 -->
+  
+    <!-- <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css"> -->
+  
+  <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans|Montserrat:700" rel="stylesheet" type="text/css"> -->
+  <!-- <link href="https://fonts.googleapis.com/css?family=Roboto:400,300,300italic,400italic" rel="stylesheet" type="text/css"> -->
+  <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+  <style type="text/css">
+    @font-face{font-family:futura-pt; src:url("css/fonts/FuturaPTBold.otf") format("woff");font-weight:500;font-style:normal;}
+    @font-face{font-family:futura-pt-light; src:url("css/fonts/FuturaPTBook.otf") format("woff");font-weight:lighter;font-style:normal;}
+    @font-face{font-family:futura-pt-italic; src:url("css/fonts/FuturaPTBookOblique.otf") format("woff");font-weight:400;font-style:italic;}
+}
+
+  </style>
+  
+<link rel="stylesheet" href="/css/style.css">
+
+
+  
+<script src="/js/jquery-3.1.1.min.js"></script>
+
+  
+<script src="/js/bootstrap.js"></script>
+
+
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" href="/css/bootstrap.css" >
+
+  
+    
+<link rel="stylesheet" href="/css/dialog.css">
+
+  
+
+  
+
+  
+    <link rel="stylesheet" href="/css/header-post.css" >
+  
+
+  
+  
+  
+
+<meta name="generator" content="Hexo 4.1.1"></head>
+
+
+
+  <body data-spy="scroll" data-target="#toc" data-offset="50">
+
+
+  
+  <div id="container">
+    <div id="wrap">
+      
+        <header>
+
+    <div id="allheader" class="navbar navbar-default navbar-static-top" role="navigation">
+        <div class="navbar-inner">
+          
+          <div class="container"> 
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+
+            
+              <a class="brand" style="border-width: 0;">
+                <p>Young</p>
+              </a>
+            
+            
+            <div class="navbar-collapse collapse">
+              <ul class="hnav navbar-nav">
+                
+                  <li> <a class="main-nav-link" href="/">首页</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/archives">归档</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/categories">分类</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/tags">标签</a> </li>
+                
+                  <li><div id="search-form-wrap">
+
+    <form class="search-form">
+        <input type="text" class="ins-search-input search-form-input" placeholder="" />
+        <button type="submit" class="search-form-submit"></button>
+    </form>
+    <div class="ins-search">
+    <div class="ins-search-mask"></div>
+    <div class="ins-search-container">
+        <div class="ins-input-wrapper">
+            <input type="text" class="ins-search-input" placeholder="请输入关键词..." />
+            <span class="ins-close ins-selectable"><i class="fa fa-times-circle"></i></span>
+        </div>
+        <div class="ins-section-wrapper">
+            <div class="ins-section-container"></div>
+        </div>
+    </div>
+</div>
+<script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(无标题)',
+        },
+        ROOT_URL: '/',
+        CONTENT_URL: '/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+
+</div></li>
+            </div>
+          </div>
+                
+      </div>
+    </div>
+
+</header>
+
+
+
+      
+            
+      <div id="content" class="outer">
+        
+          <section id="main" style="float:none;"> <article id="post-Dubbo-协议解析" style="width: 100%; float:left;" class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" class="article-title" itemprop="name">
+      Dubbo 协议解析
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/" class="article-date">
+	  <time datetime="2020-01-10T04:00:05.000Z" itemprop="datePublished">2020-01-10</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/RPC/">RPC</a>
+
+      
+	<a class="article-views">
+	<span id="busuanzi_container_page_pv">
+		阅读量<span id="busuanzi_value_page_pv"></span>
+	</span>
+	</a>
+
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <img src="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/header.jpg" class="" title="header">
+
+<blockquote>
+<p>本文所有讨论都基于Dubbo 2.7.2</p>
+</blockquote>
+<p><a href="https://youngest.cool/2020/01/08/Dubbo-Provider/#more">上一篇</a>分析了Dubbo暴露服务的过程，当Provider服务启动后，网络传输层会使用Netty、Mina等框架接收处理数据，这一篇详细介绍一下这个处理Dubbo协议数据的过程。</p>
+<h3 id="协议格式"><a href="#协议格式" class="headerlink" title="协议格式"></a>协议格式</h3><p>Dubbo协议格式如下：Header(<em>16 bytes</em>) + Body(<em>n bytes</em>)</p>
+<img src="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/protocol.png" class="" title="protocol">
+
+<ul>
+<li><p>Magic (<strong>2 byte</strong>)</p>
+<p>常数=0xdabb</p>
+</li>
+<li><p>Req/Res (<strong>1 bit</strong>)</p>
+<p>标识当前是一个Request还是一个Response。1 → Req，0 → Res</p>
+</li>
+<li><p>2 Way (<strong>1 bit</strong>)</p>
+<p>只有是一个Request时才有用，标识是否需要服务器对当前请求返回一个值。1 → 需要返回值</p>
+</li>
+<li><p>Event (<strong>1 bit</strong>)</p>
+<p>标识当前数据是否是一个Event，例如心跳。1 → 是一个Event</p>
+</li>
+<li><p>Serialization ID (<strong>5 bit</strong>)</p>
+<p>序列化标识。2 → Hessian2，6 → FastJson，21 → Protobuf</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">byte</span> HESSIAN2_SERIALIZATION_ID = <span class="number">2</span>;</span><br><span class="line"><span class="keyword">byte</span> JAVA_SERIALIZATION_ID = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">byte</span> COMPACTED_JAVA_SERIALIZATION_ID = <span class="number">4</span>;</span><br><span class="line"><span class="keyword">byte</span> FASTJSON_SERIALIZATION_ID = <span class="number">6</span>;</span><br><span class="line"><span class="keyword">byte</span> NATIVE_JAVA_SERIALIZATION_ID = <span class="number">7</span>;</span><br><span class="line"><span class="keyword">byte</span> KRYO_SERIALIZATION_ID = <span class="number">8</span>;</span><br><span class="line"><span class="keyword">byte</span> FST_SERIALIZATION_ID = <span class="number">9</span>;</span><br><span class="line"><span class="keyword">byte</span> NATIVE_HESSIAN_SERIALIZATION_ID = <span class="number">10</span>;</span><br><span class="line"><span class="keyword">byte</span> PROTOSTUFF_SERIALIZATION_ID = <span class="number">12</span>;</span><br><span class="line"><span class="keyword">byte</span> AVRO_SERIALIZATION_ID = <span class="number">11</span>;</span><br><span class="line"><span class="keyword">byte</span> GSON_SERIALIZATION_ID = <span class="number">16</span>;</span><br><span class="line"><span class="keyword">byte</span> PROTOBUF_JSON_SERIALIZATION_ID = <span class="number">21</span>;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Status (<strong>1 byte</strong>)</p>
+<p>只有是一个Response时才有用，标识当前response的状态，有点像Http Code</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">byte</span> OK = <span class="number">20</span>;</span><br><span class="line"><span class="keyword">byte</span> CLIENT_TIMEOUT = <span class="number">30</span>;</span><br><span class="line"><span class="keyword">byte</span> SERVER_TIMEOUT = <span class="number">31</span>;</span><br><span class="line"><span class="keyword">byte</span> CHANNEL_INACTIVE = <span class="number">35</span>;</span><br><span class="line"><span class="keyword">byte</span> BAD_REQUEST = <span class="number">40</span>;</span><br><span class="line"><span class="keyword">byte</span> BAD_RESPONSE = <span class="number">50</span>;</span><br><span class="line"><span class="keyword">byte</span> SERVICE_NOT_FOUND = <span class="number">60</span>;</span><br><span class="line"><span class="keyword">byte</span> SERVICE_ERROR = <span class="number">70</span>;</span><br><span class="line"><span class="keyword">byte</span> SERVER_ERROR = <span class="number">80</span>;</span><br><span class="line"><span class="keyword">byte</span> CLIENT_ERROR = <span class="number">90</span>;</span><br><span class="line"><span class="keyword">byte</span> SERVER_THREADPOOL_EXHAUSTED_ERROR = <span class="number">100</span>;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Request ID (<strong>8 bytes</strong>)</p>
+<p>每个Request都会分配一个ID</p>
+</li>
+<li><p>Data Length (<strong>4 bytes</strong>)</p>
+<p>Payload的长度</p>
+</li>
+<li><p>PayLoad (<strong>n bytes</strong>)</p>
+<p>RPC数据，长度由<em>Data Length</em>字段指明。</p>
+</li>
+</ul>
+<h3 id="协议解析"><a href="#协议解析" class="headerlink" title="协议解析"></a>协议解析</h3><p>Dubbo里与协议解析相关的两部分是Exchanger和Transporter，Transporter以ByteBuf和Message为中心负责读取网络数据并(反)序列化，Exchanger以Request和Response为核心处理数据。</p>
+<img src="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/exchanger.png" class="" title="exchanger">
+
+<blockquote>
+<p>这样划分只是帮助理解，并不是必须这样</p>
+</blockquote>
+<p>看一下decode的源码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//DubboCodec.java</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Object <span class="title">decode</span><span class="params">(Channel channel, ChannelBuffer buffer)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> readable = buffer.readableBytes();</span><br><span class="line">    <span class="keyword">byte</span>[] header = <span class="keyword">new</span> <span class="keyword">byte</span>[Math.min(readable, HEADER_LENGTH)];</span><br><span class="line">    buffer.readBytes(header);</span><br><span class="line">    <span class="keyword">return</span> decode(channel, buffer, readable, header);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> Object <span class="title">decode</span><span class="params">(Channel channel, ChannelBuffer buffer, <span class="keyword">int</span> readable, <span class="keyword">byte</span>[] header)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="comment">// check magic number.</span></span><br><span class="line">    <span class="keyword">if</span> (readable &gt; <span class="number">0</span> &amp;&amp; header[<span class="number">0</span>] != MAGIC_HIGH</span><br><span class="line">            || readable &gt; <span class="number">1</span> &amp;&amp; header[<span class="number">1</span>] != MAGIC_LOW) &#123;</span><br><span class="line">        <span class="keyword">int</span> length = header.length;</span><br><span class="line">        <span class="keyword">if</span> (header.length &lt; readable) &#123;</span><br><span class="line">            header = Bytes.copyOf(header, readable);</span><br><span class="line">            buffer.readBytes(header, length, readable - length);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt; header.length - <span class="number">1</span>; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (header[i] == MAGIC_HIGH &amp;&amp; header[i + <span class="number">1</span>] == MAGIC_LOW) &#123;</span><br><span class="line">                buffer.readerIndex(buffer.readerIndex() - header.length + i);</span><br><span class="line">                header = Bytes.copyOf(header, i);</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">super</span>.decode(channel, buffer, readable, header);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//读到的数据太少，继续等待</span></span><br><span class="line">    <span class="keyword">if</span> (readable &lt; HEADER_LENGTH) &#123;</span><br><span class="line">        <span class="keyword">return</span> DecodeResult.NEED_MORE_INPUT;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//从第12个byte开始读data length</span></span><br><span class="line">    <span class="keyword">int</span> len = Bytes.bytes2int(header, <span class="number">12</span>);</span><br><span class="line">    <span class="comment">//Payload的长度有限制</span></span><br><span class="line">    checkPayload(channel, len);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> tt = len + HEADER_LENGTH;</span><br><span class="line">    <span class="keyword">if</span> (readable &lt; tt) &#123;</span><br><span class="line">        <span class="keyword">return</span> DecodeResult.NEED_MORE_INPUT;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// limit input stream.</span></span><br><span class="line">    ChannelBufferInputStream is = <span class="keyword">new</span> ChannelBufferInputStream(buffer, len);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> decodeBody(channel, is, header);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        ......</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> Object <span class="title">decodeBody</span><span class="params">(Channel channel, InputStream is, <span class="keyword">byte</span>[] header)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="comment">//proto对应一种serialization</span></span><br><span class="line">    <span class="keyword">byte</span> flag = header[<span class="number">2</span>], proto = (<span class="keyword">byte</span>) (flag &amp; SERIALIZATION_MASK);</span><br><span class="line">    <span class="comment">// get request id.</span></span><br><span class="line">    <span class="keyword">long</span> id = Bytes.bytes2long(header, <span class="number">4</span>);</span><br><span class="line">    <span class="keyword">if</span> ((flag &amp; FLAG_REQUEST) == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">//decode response.</span></span><br><span class="line">        Response res = <span class="keyword">new</span> Response(id);</span><br><span class="line">        <span class="comment">//response与request的过程相似，省略</span></span><br><span class="line">        ...</span><br><span class="line">        ...</span><br><span class="line">        <span class="keyword">return</span> res;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">//decode request.</span></span><br><span class="line">        <span class="comment">//构造request，Exchanger处理之</span></span><br><span class="line">        Request req = <span class="keyword">new</span> Request(id);</span><br><span class="line">        req.setVersion(Version.getProtocolVersion());</span><br><span class="line">        req.setTwoWay((flag &amp; FLAG_TWOWAY) != <span class="number">0</span>);</span><br><span class="line">        <span class="keyword">if</span> ((flag &amp; FLAG_EVENT) != <span class="number">0</span>) &#123;</span><br><span class="line">            req.setEvent(<span class="keyword">true</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Object data;</span><br><span class="line">            <span class="comment">//根据proto找到Deserializer</span></span><br><span class="line">            ObjectInput in = CodecSupport.deserialize(channel.getUrl(), is, proto);</span><br><span class="line">            <span class="keyword">if</span> (req.isHeartbeat()) &#123;</span><br><span class="line">                data = decodeHeartbeatData(channel, in);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (req.isEvent()) &#123;</span><br><span class="line">                data = decodeEventData(channel, in);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                DecodeableRpcInvocation inv;</span><br><span class="line">                <span class="keyword">if</span> (channel.getUrl().getParameter(DECODE_IN_IO_THREAD_KEY, DEFAULT_DECODE_IN_IO_THREAD)) &#123;</span><br><span class="line">                    inv = <span class="keyword">new</span> DecodeableRpcInvocation(channel, req, is, proto);</span><br><span class="line">                    <span class="comment">//若配置了在当前I/O线程进行decode工作，则在此处就decode，然后直接调用Invoker</span></span><br><span class="line">                    inv.decode();</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    inv = <span class="keyword">new</span> DecodeableRpcInvocation(channel, req,</span><br><span class="line">                            <span class="keyword">new</span> UnsafeByteArrayInputStream(readMessageData(is)), proto);</span><br><span class="line">                    <span class="comment">//没有调用decode，在后面的线程池调用</span></span><br><span class="line">                &#125;</span><br><span class="line">                data = inv;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">//后续DecodeHandler会对这个data进行处理</span></span><br><span class="line">            req.setData(data);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            <span class="keyword">if</span> (log.isWarnEnabled()) &#123;</span><br><span class="line">                log.warn(<span class="string">"Decode request failed: "</span> + t.getMessage(), t);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// bad request</span></span><br><span class="line">            req.setBroken(<span class="keyword">true</span>);</span><br><span class="line">            req.setData(t);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> req;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="相关源码"><a href="#相关源码" class="headerlink" title="相关源码"></a>相关源码</h3><p><a href="https://youngest.cool/2020/01/08/Dubbo-Provider/#more">上一篇</a>讲到Provider暴露服务时，要启动服务等待Consumer连接，这里就从启动服务开始看吧。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//HeaderExchanger</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> ExchangeServer <span class="title">bind</span><span class="params">(URL url, ExchangeHandler handler)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">	 <span class="comment">//记得这里有三个handler</span></span><br><span class="line">	 <span class="comment">//最内层的handler是在DubboProtocol中定义的</span></span><br><span class="line">	 <span class="comment">//HeaderExchangeHandler是Exchanger层使用的</span></span><br><span class="line">	 <span class="comment">//DecodeHandler给Transporter使用</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> HeaderExchangeServer(Transporters.bind(url, <span class="keyword">new</span> DecodeHandler(<span class="keyword">new</span> HeaderExchangeHandler(handler))));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//Transporters使用SPI，走到了Netty4的NettyTransporter里</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Server <span class="title">bind</span><span class="params">(URL url, ChannelHandler listener)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> NettyServer(url, listener);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">NettyServer</span><span class="params">(URL url, ChannelHandler handler)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="comment">//这里的handler是前面的DecodeHandler</span></span><br><span class="line">    <span class="keyword">super</span>(url, ChannelHandlers.wrap(handler, ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME)));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Dubbo里的Handler很多，这里有必要详细解释一下，否则很快就晕了。我们可以认为DecodeHandler属于Transporter层，HeaderExchangeHandler属于Exchanger层，Exchanger里面又包含了Invoker，这样就完成了Transporter与Exchanger直到内部Invoker的交互。</p>
+<p>上面有一行关键的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//先更新了URL里的parameter，更新后添加了一个参数threadname=DubboServerHandler-xxx:20880</span></span><br><span class="line">ChannelHandlers.wrap(handler, ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME))</span><br><span class="line"></span><br><span class="line"><span class="comment">//看看wrap里面</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ChannelHandler <span class="title">wrap</span><span class="params">(ChannelHandler handler, URL url)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> ChannelHandlers.getInstance().wrapInternal(handler, url);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> ChannelHandler <span class="title">wrapInternal</span><span class="params">(ChannelHandler handler, URL url)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//这里通过SPI引入了Dispatcher，默认是AllDispatcher</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> MultiMessageHandler(<span class="keyword">new</span> HeartbeatHandler(ExtensionLoader.getExtensionLoader(Dispatcher<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">                .<span class="title">getAdaptiveExtension</span>().<span class="title">dispatch</span>(<span class="title">handler</span>, <span class="title">url</span>)))</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>为了提高效率，I/O线程(对于Netty，这里指的是ChildEventLoop)解析完数据后，我们会创建自己的线程池进行异步处理，<code>Dispatcher</code>负责将新到来的请求分发到线程池中，通过SPI机制，可以个性化Dispatcher的行为，比如Dubbo提供的<code>ExecutionChannelHandler</code>，可以只对RPC请求才分发异步处理，而别的心跳事件不分发，还用I/O线程处理。</p>
+<p>目前支持的几种Dispatcher:</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">all</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.all.AllDispatcher</span></span><br><span class="line"><span class="attr">direct</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.direct.DirectDispatcher</span></span><br><span class="line"><span class="attr">message</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.message.MessageOnlyDispatcher</span></span><br><span class="line"><span class="attr">execution</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.execution.ExecutionDispatcher</span></span><br><span class="line"><span class="attr">connection</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.connection.ConnectionOrderedDispatcher</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">AllDispatcher</span> <span class="keyword">implements</span> <span class="title">Dispatcher</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String NAME = <span class="string">"all"</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> ChannelHandler <span class="title">dispatch</span><span class="params">(ChannelHandler handler, URL url)</span> </span>&#123;</span><br><span class="line">        <span class="comment">//正如名字一样，这个Handler会对所有事件进行异步处理，包括connected，disconnected，channelRead等</span></span><br><span class="line">        <span class="comment">//要记得这里的handler是DecodeHandler</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> AllChannelHandler(handler, url);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//看一下AllChannelHandler的构造</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">AllChannelHandler</span><span class="params">(ChannelHandler handler, URL url)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">super</span>(handler, url);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//进入super</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">WrappedChannelHandler</span><span class="params">(ChannelHandler handler, URL url)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//依然提醒一下，这里的handler是DecodeHandler</span></span><br><span class="line">    <span class="keyword">this</span>.handler = handler;</span><br><span class="line">    <span class="keyword">this</span>.url = url;</span><br><span class="line">    <span class="comment">//SPI创建线程池</span></span><br><span class="line">    executor = (ExecutorService) ExtensionLoader.getExtensionLoader(ThreadPool<span class="class">.<span class="keyword">class</span>).<span class="title">getAdaptiveExtension</span>().<span class="title">getExecutor</span>(<span class="title">url</span>)</span>;</span><br><span class="line"></span><br><span class="line">    String componentKey = Constants.EXECUTOR_SERVICE_COMPONENT_KEY;</span><br><span class="line">    <span class="keyword">if</span> (CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(SIDE_KEY))) &#123;</span><br><span class="line">        componentKey = CONSUMER_SIDE;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//还不清楚这里为何要保存一下</span></span><br><span class="line">    DataStore dataStore = ExtensionLoader.getExtensionLoader(DataStore<span class="class">.<span class="keyword">class</span>).<span class="title">getDefaultExtension</span>()</span>;</span><br><span class="line">    dataStore.put(componentKey, Integer.toString(url.getPort()), executor);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>底层网络框架以Netty为例，处理协议的各个<code>Handler</code>如下，其中虚线左侧是Netty的Handler，处理codec和serializaion，右侧是Dubbo自定义的Handler，用于处理RPC的请求。<code>NettyServerHandler</code>是Netty与Dubbo的桥梁。<br>两个SPI分别用于选择合适的<strong>Dispatcher</strong>和<strong>ThreadPool</strong>。</p>
+<img src="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/handler.png" class="" title="handler">
+
+<p>接着看一下DecodeHandler的源码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">received</span><span class="params">(Channel channel, Object message)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Decodeable) &#123;</span><br><span class="line">        decode(message);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//前面提到过，DecodeHandler会处理data</span></span><br><span class="line">    <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Request) &#123;</span><br><span class="line">        decode(((Request) message).getData());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Response) &#123;</span><br><span class="line">        decode(((Response) message).getResult());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    handler.received(channel, message);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">decode</span><span class="params">(Object message)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Decodeable) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            ((Decodeable) message).decode();</span><br><span class="line">            <span class="keyword">if</span> (log.isDebugEnabled()) &#123;</span><br><span class="line">                log.debug(<span class="string">"Decode decodeable message "</span> + message.getClass().getName());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">            <span class="keyword">if</span> (log.isWarnEnabled()) &#123;</span><br><span class="line">                log.warn(<span class="string">"Call Decodeable.decode failed: "</span> + e.getMessage(), e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="comment">// ~ end of catch</span></span><br><span class="line">    &#125; <span class="comment">// ~ end of if</span></span><br><span class="line">&#125; <span class="comment">// ~ end of method decode</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//对于Request，message是DecodeableRpcInvocation</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">decode</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!hasDecoded &amp;&amp; channel != <span class="keyword">null</span> &amp;&amp; inputStream != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            decode(channel, inputStream);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">            <span class="keyword">if</span> (log.isWarnEnabled()) &#123;</span><br><span class="line">                log.warn(<span class="string">"Decode rpc invocation failed: "</span> + e.getMessage(), e);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">//decode错误</span></span><br><span class="line">            request.setBroken(<span class="keyword">true</span>);</span><br><span class="line">            <span class="comment">//data赋值为exception</span></span><br><span class="line">            request.setData(e);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            hasDecoded = <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//解析rpc方法名，方法参数等</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Object <span class="title">decode</span><span class="params">(Channel channel, InputStream input)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    ObjectInput in = CodecSupport.getSerialization(channel.getUrl(), serializationType)</span><br><span class="line">            .deserialize(channel.getUrl(), input);</span><br><span class="line"></span><br><span class="line">    String dubboVersion = in.readUTF();</span><br><span class="line">    request.setVersion(dubboVersion);</span><br><span class="line">    setAttachment(DUBBO_VERSION_KEY, dubboVersion);</span><br><span class="line"></span><br><span class="line">    setAttachment(PATH_KEY, in.readUTF());</span><br><span class="line">    setAttachment(VERSION_KEY, in.readUTF());</span><br><span class="line"></span><br><span class="line">    setMethodName(in.readUTF());</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        Object[] args;</span><br><span class="line">        Class&lt;?&gt;[] pts;</span><br><span class="line">        String desc = in.readUTF();</span><br><span class="line">        <span class="keyword">if</span> (desc.length() == <span class="number">0</span>) &#123;</span><br><span class="line">            pts = DubboCodec.EMPTY_CLASS_ARRAY;</span><br><span class="line">            args = DubboCodec.EMPTY_OBJECT_ARRAY;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            pts = ReflectUtils.desc2classArray(desc);</span><br><span class="line">            args = <span class="keyword">new</span> Object[pts.length];</span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; args.length; i++) &#123;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    args[i] = in.readObject(pts[i]);</span><br><span class="line">                &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                    <span class="keyword">if</span> (log.isWarnEnabled()) &#123;</span><br><span class="line">                        log.warn(<span class="string">"Decode argument failed: "</span> + e.getMessage(), e);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        setParameterTypes(pts);</span><br><span class="line"></span><br><span class="line">        Map&lt;String, String&gt; map = (Map&lt;String, String&gt;) in.readObject(Map<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">        <span class="keyword">if</span> (map != <span class="keyword">null</span> &amp;&amp; map.size() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">            Map&lt;String, String&gt; attachment = getAttachments();</span><br><span class="line">            <span class="keyword">if</span> (attachment == <span class="keyword">null</span>) &#123;</span><br><span class="line">                attachment = <span class="keyword">new</span> HashMap&lt;String, String&gt;();</span><br><span class="line">            &#125;</span><br><span class="line">            attachment.putAll(map);</span><br><span class="line">            setAttachments(attachment);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">//decode argument ,may be callback</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; args.length; i++) &#123;</span><br><span class="line">            <span class="comment">//这里没太懂</span></span><br><span class="line">            args[i] = decodeInvocationArgument(channel, <span class="keyword">this</span>, pts, i, args[i]);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        setArguments(args);</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">catch</span> (ClassNotFoundException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IOException(StringUtils.toString(<span class="string">"Read invocation data failed."</span>, e));</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (in <span class="keyword">instanceof</span> Cleanable) &#123;</span><br><span class="line">            ((Cleanable) in).cleanup();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接下来Exchanger开始处理</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//HeaderExchangeHandler.java</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">received</span><span class="params">(Channel channel, Object message)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());</span><br><span class="line">    <span class="keyword">final</span> ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Request) &#123;</span><br><span class="line">            <span class="comment">// handle request.</span></span><br><span class="line">            Request request = (Request) message;</span><br><span class="line">            <span class="keyword">if</span> (request.isEvent()) &#123;</span><br><span class="line">                handlerEvent(channel, request);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                </span><br><span class="line">                <span class="keyword">if</span> (request.isTwoWay()) &#123;</span><br><span class="line">                    <span class="comment">//有返回值的RPC</span></span><br><span class="line">                    handleRequest(exchangeChannel, request);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    handler.received(exchangeChannel, request.getData());</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Response) &#123;</span><br><span class="line">            handleResponse(channel, (Response) message);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (message <span class="keyword">instanceof</span> String) &#123;</span><br><span class="line">            <span class="keyword">if</span> (isClientSide(channel)) &#123;</span><br><span class="line">                Exception e = <span class="keyword">new</span> Exception(<span class="string">"Dubbo client can not supported string message: "</span> + message + <span class="string">" in channel: "</span> + channel + <span class="string">", url: "</span> + channel.getUrl());</span><br><span class="line">                logger.error(e.getMessage(), e);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                String echo = handler.telnet(channel, (String) message);</span><br><span class="line">                <span class="keyword">if</span> (echo != <span class="keyword">null</span> &amp;&amp; echo.length() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                    channel.send(echo);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            handler.received(exchangeChannel, message);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        HeaderExchangeChannel.removeChannelIfDisconnected(channel);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">handleRequest</span><span class="params">(<span class="keyword">final</span> ExchangeChannel channel, Request req)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    Response res = <span class="keyword">new</span> Response(req.getId(), req.getVersion());</span><br><span class="line">    <span class="keyword">if</span> (req.isBroken()) &#123;</span><br><span class="line">        <span class="comment">//前面解析协议数据可能报错了</span></span><br><span class="line">        Object data = req.getData();</span><br><span class="line"></span><br><span class="line">        String msg;</span><br><span class="line">        <span class="keyword">if</span> (data == <span class="keyword">null</span>) &#123;</span><br><span class="line">            msg = <span class="keyword">null</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (data <span class="keyword">instanceof</span> Throwable) &#123;</span><br><span class="line">            msg = StringUtils.toString((Throwable) data);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            msg = data.toString();</span><br><span class="line">        &#125;</span><br><span class="line">        res.setErrorMessage(<span class="string">"Fail to decode request due to: "</span> + msg);</span><br><span class="line">        <span class="comment">//status赋值</span></span><br><span class="line">        res.setStatus(Response.BAD_REQUEST);</span><br><span class="line"></span><br><span class="line">        channel.send(res);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// find handler by message class.</span></span><br><span class="line">    Object msg = req.getData();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//调用DubboProtocol里内部类的reply</span></span><br><span class="line">        CompletionStage&lt;Object&gt; future = handler.reply(channel, msg);</span><br><span class="line">        future.whenComplete((appResult, t) -&gt; &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (t == <span class="keyword">null</span>) &#123;</span><br><span class="line">                    res.setStatus(Response.OK);</span><br><span class="line">                    res.setResult(appResult);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    res.setStatus(Response.SERVICE_ERROR);</span><br><span class="line">                    res.setErrorMessage(StringUtils.toString(t));</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="comment">//将response返回</span></span><br><span class="line">                channel.send(res);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (RemotingException e) &#123;</span><br><span class="line">                logger.warn(<span class="string">"Send result to consumer failed, channel is "</span> + channel + <span class="string">", msg is "</span> + e);</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                <span class="comment">// HeaderExchangeChannel.removeChannelIfDisconnected(channel);</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">        res.setStatus(Response.SERVICE_ERROR);</span><br><span class="line">        res.setErrorMessage(StringUtils.toString(e));</span><br><span class="line">        channel.send(res);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="涉及到的参数"><a href="#涉及到的参数" class="headerlink" title="涉及到的参数"></a>涉及到的参数</h3><table>
+<thead>
+<tr>
+<th align="center">名字</th>
+<th align="center">默认值</th>
+<th align="center">用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><mark>payload</mark></td>
+<td align="center">8M</td>
+<td align="center">dubbo协议中，payload的最大值</td>
+</tr>
+<tr>
+<td align="center"><mark>decode.in.io</mark></td>
+<td align="center">true</td>
+<td align="center">是否在I/O线程中进行decode</td>
+</tr>
+<tr>
+<td align="center"><mark>dispather</mark></td>
+<td align="center">all</td>
+<td align="center">选择的Dispatcher策略</td>
+</tr>
+<tr>
+<td align="center"><mark>threadpool</mark></td>
+<td align="center">fixed</td>
+<td align="center">选择哪种线程池</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>参考</em></p>
+<p><a href="http://dubbo.apache.org/zh-cn/index.html" target="_blank" rel="noopener">http://dubbo.apache.org/zh-cn/index.html</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      
+      
+      
+      <div>
+        <ul class="post-copyright">
+          <li class="post-copyright-author">
+          <strong>本文作者:  </strong>Yangpeng</a>
+          </li>
+          <li class="post-copyright-link">
+          <strong>本文链接:  </strong>
+          <a href="/2020/01/10/Dubbo-协议解析/" target="_blank" title="Dubbo 协议解析">http://youngest.cool/2020/01/10/Dubbo-协议解析/</a>
+          </li>
+          <li class="post-copyright-license">
+            <strong>版权声明:   </strong>
+            本博客所有文章除特别声明外，均采用 <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" title="Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)">CC BY-NC-ND 4.0</a>
+            许可协议。转载请注明出处
+          </li>
+         
+        </ul>
+<div>
+
+      
+      
+        
+	<div id="comment">
+		<!-- 国内Valine评论系统 -->
+		<div id="lv-container" data-id="city" data-uid="Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz" style="margin-top:45px"></div>
+		<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+		<script src='//unpkg.com/valine/dist/Valine.min.js'></script>
+		<script>
+        new Valine({
+            el: '#lv-container',
+            appId: 'Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz',
+            appKey: 'IOJj3idrR64NvJ7CM41rhDHT',
+            notify: false, 
+    		verify: false, 
+    		avatar: 'monsterid', 
+    		placeholder: '说点什么吧!'
+        })
+        </script>
+	
+
+	</div>
+
+
+
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2020/01/08/Dubbo-Provider/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">Dubbo Provider</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+<!-- Table of Contents -->
+
+  <aside id="toc-sidebar" class="toc-hide">
+    <div id="toc" class="toc-article">
+    <strong class="toc-title">文章目录</strong>
+    
+        <ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#协议格式"><span class="nav-number">1.</span> <span class="nav-text">协议格式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#协议解析"><span class="nav-number">2.</span> <span class="nav-text">协议解析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#相关源码"><span class="nav-number">3.</span> <span class="nav-text">相关源码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#涉及到的参数"><span class="nav-number">4.</span> <span class="nav-text">涉及到的参数</span></a></li></ol>
+    
+    </div>
+  </aside>
+
+</section>
+        
+      </div>
+      
+      <footer id="footer">
+  
+
+  <div class="container">
+      	<div class="row">
+	      <p> Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/iTimeTraveler/hexo-theme-hiker" target="_blank">Hexo-theme-hiker</a> </p>
+	      <p id="copyRightEn">Copyright &copy; 2013 - 2020 Young All Rights Reserved.</p>
+	      
+	      
+    		<p class="busuanzi_uv">
+				访客数 : <span id="busuanzi_value_site_uv"></span> |  
+				访问量 : <span id="busuanzi_value_site_pv"></span>
+		    </p>
+  		   
+		</div>
+
+		
+  </div>
+</footer>
+
+
+<!-- min height -->
+
+<script>
+    var wrapdiv = document.getElementById("wrap");
+    var contentdiv = document.getElementById("content");
+    var allheader = document.getElementById("allheader");
+
+    wrapdiv.style.minHeight = document.body.offsetHeight + "px";
+    if (allheader != null) {
+      contentdiv.style.minHeight = document.body.offsetHeight - allheader.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    } else {
+      contentdiv.style.minHeight = document.body.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    }
+</script>
+    </div>
+    <!-- <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+  
+    <a href="/tags" class="mobile-nav-link">Tags</a>
+  
+</nav> -->
+    
+
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/scripts.js"></script>
+
+
+
+
+
+  
+<script src="/js/dialog.js"></script>
+
+
+
+
+
+
+
+
+
+	<div style="display: none;">
+    <script src="https://s95.cnzz.com/z_stat.php?id=1260716016&web_id=1260716016" language="JavaScript"></script>
+  </div>
+
+
+
+	<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
+	</script>
+
+
+
+
+
+
+  </div>
+
+  <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="myModalLabel">设置</h2>
+      </div>
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+
+
+      <div class="modal-body">
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne" onclick="javascript:setFontSize();" aria-expanded="true" aria-controls="collapseOne">
+              正文字号大小
+            </a>
+          </div>
+          <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+          <div class="panel-body">
+            您已调整页面字体大小
+          </div>
+        </div>
+      
+
+
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" onclick="javascript:setBackground();" aria-expanded="true" aria-controls="collapseTwo">
+              夜间护眼模式
+            </a>
+        </div>
+          <div id="collapseTwo" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingTwo">
+          <div class="panel-body">
+            夜间模式已经开启，再次单击按钮即可关闭 
+          </div>
+        </div>
+
+        <div>
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseThree" aria-expanded="true" aria-controls="collapseThree">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;关 于&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a>
+        </div>
+         <div id="collapseThree" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingThree">
+          <div class="panel-body">
+            Young
+          </div>
+          <div class="panel-body">
+            Copyright © 2020 Yangpeng All Rights Reserved.
+          </div>
+        </div>
+      </div>
+
+
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <div class="modal-footer">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+  
+  <a id="rocket" href="#top" class=""></a>
+  <script type="text/javascript" src="/js/totop.js?v=1.0.0" async=""></script>
+  
+    <a id="menu-switch"><i class="fa fa-bars fa-lg"></i></a>
+  
+</body>
+</html>

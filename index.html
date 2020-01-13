@@ -227,6 +227,75 @@
         
           <section id="main" style="float:none;">
   
+     <article id="post-Dubbo-协议解析"  class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" itemprop="name">
+      <a class="article-title" href="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/">Dubbo 协议解析</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/" class="article-date">
+	  <time datetime="2020-01-10T04:00:05.000Z" itemprop="datePublished">2020-01-10</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/RPC/">RPC</a>
+
+      
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p class="article-excerpt-content">
+          
+
+
+本文所有讨论都基于Dubbo 2.7.2
+
+上一篇分析了Dubbo暴露服务的过程，当Provider服务启动后，网络传输层会使用Netty、Mina等框架接收处理数据，这一篇详细介绍一下这个处理Dubbo协议数据的过程。
+协议格式Dubbo协议格式如下：Header(16 bytes) + Body(n bytes)
+
+
+
+Magic (2 byte)
+常数=0xdabb
+
+Req/Res (1 bit)
+标识当前是一个Request还是一个Response。1 → Req，0 → ...
+        </p>
+        <p class="article-more-link">
+          <a href="/2020/01/10/Dubbo-%E5%8D%8F%E8%AE%AE%E8%A7%A3%E6%9E%90/#more">阅读全文</a>
+        </p>
+      
+    </div>
+    <footer class="article-footer">
+      
+        
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Dubbo/" rel="tag">Dubbo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Protocol/" rel="tag">Protocol</a></li></ul>
+
+      
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+<!-- Table of Contents -->
+
+
+  
      <article id="post-Dubbo-Provider"  class="article article-type-post" itemscope itemprop="blogPost" >
   <div id="articleInner" class="article-inner">
     
