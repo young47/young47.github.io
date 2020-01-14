@@ -227,6 +227,129 @@
         
           <section id="main" style="float:none;">
   
+     <article id="post-Dubbo-Consumer-2"  class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" itemprop="name">
+      <a class="article-title" href="/2020/01/14/Dubbo-Consumer-2/">Dubbo Consumer(2)</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/01/14/Dubbo-Consumer-2/" class="article-date">
+	  <time datetime="2020-01-14T06:22:57.000Z" itemprop="datePublished">2020-01-14</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/RPC/">RPC</a>
+
+      
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p class="article-excerpt-content">
+          
+
+
+本文所有讨论都基于Dubbo 2.7.2
+
+上一篇文章分析了Consumer引用服务的过程，其中通过Cluster，LoadBalance等最后确定了一个可以调用的Invoker，那么这个Invoker具体怎么创建的呢？这篇文章就来分析一下。
+从前文知道，Directory负责从注册中心获取服务，并监控服务的变化。所以我们就从Directory里开始看起。
+订阅服务在Cluster Invoker select真正的Invoker时，会调用directory.subscribe()，...
+        </p>
+        <p class="article-more-link">
+          <a href="/2020/01/14/Dubbo-Consumer-2/#more">阅读全文</a>
+        </p>
+      
+    </div>
+    <footer class="article-footer">
+      
+        
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Consumer/" rel="tag">Consumer</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Dubbo/" rel="tag">Dubbo</a></li></ul>
+
+      
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+<!-- Table of Contents -->
+
+
+  
+     <article id="post-Dubbo-Consumer"  class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" itemprop="name">
+      <a class="article-title" href="/2020/01/13/Dubbo-Consumer/">Dubbo Consumer</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/01/13/Dubbo-Consumer/" class="article-date">
+	  <time datetime="2020-01-13T08:36:21.000Z" itemprop="datePublished">2020-01-13</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/RPC/">RPC</a>
+
+      
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p class="article-excerpt-content">
+          
+
+
+本文所有讨论都基于Dubbo 2.7.2
+
+这篇介绍了Dubbo如何暴露服务，这篇继续介绍Consumer如何引入服务。Consumer引用服务相比Provider要复杂一下，因为还要有服务路由，负载均衡等模块。
+配置1234567&lt;dubbo:application name="dubbo-example-consumer"/&gt;&lt;!-- 使用zookeeper注册中心引用服务 --&gt;&lt;dubbo:registry protocol="zookeeper...
+        </p>
+        <p class="article-more-link">
+          <a href="/2020/01/13/Dubbo-Consumer/#more">阅读全文</a>
+        </p>
+      
+    </div>
+    <footer class="article-footer">
+      
+        
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Consumer/" rel="tag">Consumer</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Dubbo/" rel="tag">Dubbo</a></li></ul>
+
+      
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+<!-- Table of Contents -->
+
+
+  
      <article id="post-Dubbo-协议解析"  class="article article-type-post" itemscope itemprop="blogPost" >
   <div id="articleInner" class="article-inner">
     

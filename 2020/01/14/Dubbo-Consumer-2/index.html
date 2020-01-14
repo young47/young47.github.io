@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>dubbo consumer(2) | Young</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  
+    <meta name="keywords" content="AABBCC" />
+  
+  
+  
+  
+  <meta name="description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇文章分析了Consumer引用服务的过程，其中通过Cluster，LoadBalance等最后确定了一个可以调用的Invoker，那么这个Invoker具体怎么创建的呢？这篇文章就来分析一下。 从前文知道，Directory负责从注册中心获取服务，并监控服务的变化。所以我们就从Directory里开始看起。 订阅服务在Cluster Invo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dubbo Consumer(2)">
+<meta property="og:url" content="http://youngest.cool/2020/01/14/Dubbo-Consumer-2/index.html">
+<meta property="og:site_name" content="Young">
+<meta property="og:description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇文章分析了Consumer引用服务的过程，其中通过Cluster，LoadBalance等最后确定了一个可以调用的Invoker，那么这个Invoker具体怎么创建的呢？这篇文章就来分析一下。 从前文知道，Directory负责从注册中心获取服务，并监控服务的变化。所以我们就从Directory里开始看起。 订阅服务在Cluster Invo">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youngest.cool/2020/01/14/Dubbo-Consumer-2/client.jpg">
+<meta property="article:published_time" content="2020-01-14T06:22:57.000Z">
+<meta property="article:modified_time" content="2020-01-14T10:26:08.424Z">
+<meta property="article:author" content="Yangpeng">
+<meta property="article:tag" content="Dubbo">
+<meta property="article:tag" content="Consumer">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youngest.cool/2020/01/14/Dubbo-Consumer-2/client.jpg">
+  
+    <link rel="alternate" href="/atom.xml" title="Young" type="application/atom+xml">
+  
+
+  
+
+  <link rel="icon" href="/css/images/kkk.png">
+  <link rel="apple-touch-icon" href="/css/images/kkk.png">
+  <!-- google的font加载太慢了，先注掉。 https://cdn.baomitu.com/index/fonts 这里可以找到字体库 -->
+  
+    <!-- <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css"> -->
+  
+  <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans|Montserrat:700" rel="stylesheet" type="text/css"> -->
+  <!-- <link href="https://fonts.googleapis.com/css?family=Roboto:400,300,300italic,400italic" rel="stylesheet" type="text/css"> -->
+  <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+  <style type="text/css">
+    @font-face{font-family:futura-pt; src:url("css/fonts/FuturaPTBold.otf") format("woff");font-weight:500;font-style:normal;}
+    @font-face{font-family:futura-pt-light; src:url("css/fonts/FuturaPTBook.otf") format("woff");font-weight:lighter;font-style:normal;}
+    @font-face{font-family:futura-pt-italic; src:url("css/fonts/FuturaPTBookOblique.otf") format("woff");font-weight:400;font-style:italic;}
+}
+
+  </style>
+  
+<link rel="stylesheet" href="/css/style.css">
+
+
+  
+<script src="/js/jquery-3.1.1.min.js"></script>
+
+  
+<script src="/js/bootstrap.js"></script>
+
+
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" href="/css/bootstrap.css" >
+
+  
+    
+<link rel="stylesheet" href="/css/dialog.css">
+
+  
+
+  
+
+  
+    <link rel="stylesheet" href="/css/header-post.css" >
+  
+
+  
+  
+  
+
+<meta name="generator" content="Hexo 4.1.1"></head>
+
+
+
+  <body data-spy="scroll" data-target="#toc" data-offset="50">
+
+
+  
+  <div id="container">
+    <div id="wrap">
+      
+        <header>
+
+    <div id="allheader" class="navbar navbar-default navbar-static-top" role="navigation">
+        <div class="navbar-inner">
+          
+          <div class="container"> 
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+
+            
+              <a class="brand" style="border-width: 0;">
+                <p>Young</p>
+              </a>
+            
+            
+            <div class="navbar-collapse collapse">
+              <ul class="hnav navbar-nav">
+                
+                  <li> <a class="main-nav-link" href="/">首页</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/archives">归档</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/categories">分类</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/tags">标签</a> </li>
+                
+                  <li><div id="search-form-wrap">
+
+    <form class="search-form">
+        <input type="text" class="ins-search-input search-form-input" placeholder="" />
+        <button type="submit" class="search-form-submit"></button>
+    </form>
+    <div class="ins-search">
+    <div class="ins-search-mask"></div>
+    <div class="ins-search-container">
+        <div class="ins-input-wrapper">
+            <input type="text" class="ins-search-input" placeholder="请输入关键词..." />
+            <span class="ins-close ins-selectable"><i class="fa fa-times-circle"></i></span>
+        </div>
+        <div class="ins-section-wrapper">
+            <div class="ins-section-container"></div>
+        </div>
+    </div>
+</div>
+<script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(无标题)',
+        },
+        ROOT_URL: '/',
+        CONTENT_URL: '/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+
+</div></li>
+            </div>
+          </div>
+                
+      </div>
+    </div>
+
+</header>
+
+
+
+      
+            
+      <div id="content" class="outer">
+        
+          <section id="main" style="float:none;"> <article id="post-Dubbo-Consumer-2" style="width: 100%; float:left;" class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" class="article-title" itemprop="name">
+      Dubbo Consumer(2)
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/01/14/Dubbo-Consumer-2/" class="article-date">
+	  <time datetime="2020-01-14T06:22:57.000Z" itemprop="datePublished">2020-01-14</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/RPC/">RPC</a>
+
+      
+	<a class="article-views">
+	<span id="busuanzi_container_page_pv">
+		阅读量<span id="busuanzi_value_page_pv"></span>
+	</span>
+	</a>
+
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <img src="/2020/01/14/Dubbo-Consumer-2/client.jpg" class="" title="client">
+
+<blockquote>
+<p>本文所有讨论都基于Dubbo 2.7.2</p>
+</blockquote>
+<p><a href="">上一篇</a>文章分析了Consumer引用服务的过程，其中通过Cluster，LoadBalance等最后确定了一个可以调用的Invoker，那么这个Invoker具体怎么创建的呢？这篇文章就来分析一下。</p>
+<p>从前文知道，Directory负责从注册中心获取服务，并监控服务的变化。所以我们就从Directory里开始看起。</p>
+<h3 id="订阅服务"><a href="#订阅服务" class="headerlink" title="订阅服务"></a>订阅服务</h3><p>在Cluster Invoker select真正的Invoker时，会调用<em>directory.subscribe()</em>，这里就是Directory与注册中心交互的开始。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">subscribe</span><span class="params">(URL url)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//此时url= consumer://.....</span></span><br><span class="line">    setConsumerUrl(url);</span><br><span class="line">    CONSUMER_CONFIGURATION_LISTENER.addNotifyListener(<span class="keyword">this</span>);</span><br><span class="line">    serviceConfigurationListener = <span class="keyword">new</span> ReferenceConfigurationListener(<span class="keyword">this</span>, url);</span><br><span class="line">    <span class="comment">//订阅</span></span><br><span class="line">    registry.subscribe(url, <span class="keyword">this</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//ZookeeperRegistry的父类FailbackRegistry.java</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">subscribe</span><span class="params">(URL url, NotifyListener listener)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//此时的listener就是RegistryDirectory</span></span><br><span class="line">    <span class="keyword">super</span>.subscribe(url, listener);</span><br><span class="line">    removeFailedSubscribed(url, listener);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// Sending a subscription request to the server side</span></span><br><span class="line">        doSubscribe(url, listener);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        </span><br><span class="line">        ......</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Record a failed registration request to a failed list, retry regularly</span></span><br><span class="line">        addFailedSubscribed(url, listener);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doSubscribe</span><span class="params">(<span class="keyword">final</span> URL url, <span class="keyword">final</span> NotifyListener listener)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (ANY_VALUE.equals(url.getServiceInterface())) &#123;</span><br><span class="line">            ......</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            List&lt;URL&gt; urls = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">            <span class="keyword">for</span> (String path : toCategoriesPath(url)) &#123;</span><br><span class="line">                ConcurrentMap&lt;NotifyListener, ChildListener&gt; listeners = zkListeners.get(url);</span><br><span class="line">                <span class="keyword">if</span> (listeners == <span class="keyword">null</span>) &#123;</span><br><span class="line">                    zkListeners.putIfAbsent(url, <span class="keyword">new</span> ConcurrentHashMap&lt;&gt;());</span><br><span class="line">                    listeners = zkListeners.get(url);</span><br><span class="line">                &#125;</span><br><span class="line">                ChildListener zkListener = listeners.get(listener);</span><br><span class="line">                <span class="keyword">if</span> (zkListener == <span class="keyword">null</span>) &#123;</span><br><span class="line">                    listeners.putIfAbsent(listener, (parentPath, currentChilds) -&gt; ZookeeperRegistry.<span class="keyword">this</span>.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds)));</span><br><span class="line">                    zkListener = listeners.get(listener);</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="comment">//若path已存在，没有影响</span></span><br><span class="line">                zkClient.create(path, <span class="keyword">false</span>);</span><br><span class="line">                <span class="comment">//注册child监听器并且返回了child内容</span></span><br><span class="line">                <span class="comment">//providers目录下的内容就是Provider暴露的服务</span></span><br><span class="line">                List&lt;String&gt; children = zkClient.addChildListener(path, zkListener);</span><br><span class="line">                <span class="keyword">if</span> (children != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    <span class="comment">//String样式的url转换为Url</span></span><br><span class="line">                    <span class="comment">//这里还进行了一步Match操作，并不是zk上所有的服务都拽下来，而是仅与url里的(group, version, classifier)匹配的url才能拽下来</span></span><br><span class="line">                    <span class="comment">//可以参考 UrlUtils.isMatch()方法</span></span><br><span class="line">                    urls.addAll(toUrlsWithEmpty(url, path, children));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            notify(url, listener, urls);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(<span class="string">"Failed to subscribe "</span> + url + <span class="string">" to zookeeper "</span> + getUrl() + <span class="string">", cause: "</span> + e.getMessage(), e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//notify()走入了下面的方法里</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">notify</span><span class="params">(URL url, NotifyListener listener, List&lt;URL&gt; urls)</span> </span>&#123;</span><br><span class="line">    ......</span><br><span class="line">    <span class="comment">// keep every provider's category.</span></span><br><span class="line">    Map&lt;String, List&lt;URL&gt;&gt; result = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (URL u : urls) &#123;</span><br><span class="line">        <span class="keyword">if</span> (UrlUtils.isMatch(url, u)) &#123;</span><br><span class="line">            String category = u.getParameter(CATEGORY_KEY, DEFAULT_CATEGORY);</span><br><span class="line">            List&lt;URL&gt; categoryList = result.computeIfAbsent(category, k -&gt; <span class="keyword">new</span> ArrayList&lt;&gt;());</span><br><span class="line">            categoryList.add(u);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (result.size() == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    Map&lt;String, List&lt;URL&gt;&gt; categoryNotified = notified.computeIfAbsent(url, u -&gt; <span class="keyword">new</span> ConcurrentHashMap&lt;&gt;());</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;String, List&lt;URL&gt;&gt; entry : result.entrySet()) &#123;</span><br><span class="line">        String category = entry.getKey();</span><br><span class="line">        List&lt;URL&gt; categoryList = entry.getValue();</span><br><span class="line">        categoryNotified.put(category, categoryList);</span><br><span class="line">        <span class="comment">//listener就是RegistryDirectory</span></span><br><span class="line">        listener.notify(categoryList);</span><br><span class="line">        <span class="comment">// We will update our cache file after each notification.</span></span><br><span class="line">        <span class="comment">// When our Registry has a subscribe failure due to network jitter, we can return at least the existing cache URL.</span></span><br><span class="line">        saveProperties(url);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">notify</span><span class="params">(List&lt;URL&gt; urls)</span> </span>&#123;</span><br><span class="line">    Map&lt;String, List&lt;URL&gt;&gt; categoryUrls = urls.stream()</span><br><span class="line">            .filter(Objects::nonNull)</span><br><span class="line">            .filter(<span class="keyword">this</span>::isValidCategory)</span><br><span class="line">            .filter(<span class="keyword">this</span>::isNotCompatibleFor26x)</span><br><span class="line">            .collect(Collectors.groupingBy(url -&gt; &#123;</span><br><span class="line">                <span class="keyword">if</span> (UrlUtils.isConfigurator(url)) &#123;</span><br><span class="line">                    <span class="keyword">return</span> CONFIGURATORS_CATEGORY;</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> (UrlUtils.isRoute(url)) &#123;</span><br><span class="line">                    <span class="keyword">return</span> ROUTERS_CATEGORY;</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> (UrlUtils.isProvider(url)) &#123;</span><br><span class="line">                    <span class="keyword">return</span> PROVIDERS_CATEGORY;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">return</span> <span class="string">""</span>;</span><br><span class="line">            &#125;));</span><br><span class="line"></span><br><span class="line">    List&lt;URL&gt; configuratorURLs = categoryUrls.getOrDefault(CONFIGURATORS_CATEGORY, Collections.emptyList());</span><br><span class="line">    <span class="keyword">this</span>.configurators = Configurator.toConfigurators(configuratorURLs).orElse(<span class="keyword">this</span>.configurators);</span><br><span class="line"></span><br><span class="line">    List&lt;URL&gt; routerURLs = categoryUrls.getOrDefault(ROUTERS_CATEGORY, Collections.emptyList());</span><br><span class="line">    toRouters(routerURLs).ifPresent(<span class="keyword">this</span>::addRouters);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// providers</span></span><br><span class="line">    List&lt;URL&gt; providerURLs = categoryUrls.getOrDefault(PROVIDERS_CATEGORY, Collections.emptyList());</span><br><span class="line">    refreshOverrideAndInvoker(providerURLs);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">refreshOverrideAndInvoker</span><span class="params">(List&lt;URL&gt; urls)</span> </span>&#123;</span><br><span class="line">    overrideDirectoryUrl();</span><br><span class="line">    <span class="comment">//重要</span></span><br><span class="line">    refreshInvoker(urls);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">refreshInvoker</span><span class="params">(List&lt;URL&gt; invokerUrls)</span> </span>&#123;</span><br><span class="line">    Assert.notNull(invokerUrls, <span class="string">"invokerUrls should not be null"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (invokerUrls.size() == <span class="number">1</span></span><br><span class="line">            &amp;&amp; invokerUrls.get(<span class="number">0</span>) != <span class="keyword">null</span></span><br><span class="line">            &amp;&amp; EMPTY_PROTOCOL.equals(invokerUrls.get(<span class="number">0</span>).getProtocol())) &#123;</span><br><span class="line">        <span class="comment">//不可访问</span></span><br><span class="line">        <span class="keyword">this</span>.forbidden = <span class="keyword">true</span>; <span class="comment">// Forbid to access</span></span><br><span class="line">        <span class="keyword">this</span>.invokers = Collections.emptyList();</span><br><span class="line">        routerChain.setInvokers(<span class="keyword">this</span>.invokers);</span><br><span class="line">        destroyAllInvokers(); <span class="comment">// Close all invokers</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">this</span>.forbidden = <span class="keyword">false</span>; <span class="comment">// Allow to access</span></span><br><span class="line">        Map&lt;String, Invoker&lt;T&gt;&gt; oldUrlInvokerMap = <span class="keyword">this</span>.urlInvokerMap; <span class="comment">// local reference</span></span><br><span class="line">        <span class="keyword">if</span> (invokerUrls == Collections.&lt;URL&gt;emptyList()) &#123;</span><br><span class="line">            invokerUrls = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (invokerUrls.isEmpty() &amp;&amp; <span class="keyword">this</span>.cachedInvokerUrls != <span class="keyword">null</span>) &#123;</span><br><span class="line">            invokerUrls.addAll(<span class="keyword">this</span>.cachedInvokerUrls);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.cachedInvokerUrls = <span class="keyword">new</span> HashSet&lt;&gt;();</span><br><span class="line">            <span class="keyword">this</span>.cachedInvokerUrls.addAll(invokerUrls);<span class="comment">//Cached invoker urls, convenient for comparison</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (invokerUrls.isEmpty()) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">//这里会根据协议(此时是dubbo://...)创建具体的Invoker</span></span><br><span class="line">        Map&lt;String, Invoker&lt;T&gt;&gt; newUrlInvokerMap = toInvokers(invokerUrls);<span class="comment">// Translate url list to Invoker map</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * If the calculation is wrong, it is not processed.</span></span><br><span class="line"><span class="comment">         *</span></span><br><span class="line"><span class="comment">         * 1. The protocol configured by the client is inconsistent with the protocol of the server.</span></span><br><span class="line"><span class="comment">         *    eg: consumer protocol = dubbo, provider only has other protocol services(rest).</span></span><br><span class="line"><span class="comment">         * 2. The registration center is not robust and pushes illegal specification data.</span></span><br><span class="line"><span class="comment">         *</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="keyword">if</span> (CollectionUtils.isEmptyMap(newUrlInvokerMap)) &#123;</span><br><span class="line">            logger.error(<span class="keyword">new</span> IllegalStateException(<span class="string">"urls to invokers error .invokerUrls.size :"</span> + invokerUrls.size() + <span class="string">", invoker.size :0. urls :"</span> + invokerUrls</span><br><span class="line">                    .toString()));</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        List&lt;Invoker&lt;T&gt;&gt; newInvokers = Collections.unmodifiableList(<span class="keyword">new</span> ArrayList&lt;&gt;(newUrlInvokerMap.values()));</span><br><span class="line">        <span class="comment">// pre-route and build cache, notice that route cache should build on original Invoker list.</span></span><br><span class="line">        <span class="comment">// toMergeMethodInvokerMap() will wrap some invokers having different groups, those wrapped invokers not should be routed.</span></span><br><span class="line">        routerChain.setInvokers(newInvokers);</span><br><span class="line">        <span class="keyword">this</span>.invokers = multiGroup ? toMergeInvokerList(newInvokers) : newInvokers;</span><br><span class="line">        <span class="keyword">this</span>.urlInvokerMap = newUrlInvokerMap;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            destroyUnusedInvokers(oldUrlInvokerMap, newUrlInvokerMap); <span class="comment">// Close the unused Invoker</span></span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            logger.warn(<span class="string">"destroyUnusedInvokers error. "</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//这个方法的核心如下</span></span><br><span class="line"><span class="keyword">private</span> Map&lt;String, Invoker&lt;T&gt;&gt; toInvokers(List&lt;URL&gt; urls) &#123;</span><br><span class="line"></span><br><span class="line">    ......</span><br><span class="line">    <span class="keyword">for</span> (URL providerUrl : urls) &#123;</span><br><span class="line">    ......</span><br><span class="line">	    <span class="keyword">try</span> &#123;</span><br><span class="line">	        <span class="keyword">boolean</span> enabled = <span class="keyword">true</span>;</span><br><span class="line">	        <span class="comment">//provider可以通过disabled=true禁用一个服务</span></span><br><span class="line">	        <span class="keyword">if</span> (url.hasParameter(DISABLED_KEY)) &#123;</span><br><span class="line">	            enabled = !url.getParameter(DISABLED_KEY, <span class="keyword">false</span>);</span><br><span class="line">	        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">	            enabled = url.getParameter(ENABLED_KEY, <span class="keyword">true</span>);</span><br><span class="line">	        &#125;</span><br><span class="line">	        <span class="keyword">if</span> (enabled) &#123;</span><br><span class="line">	            <span class="comment">//根据SPI，dubbo://... 会使用DubboProtocol</span></span><br><span class="line">	            invoker = <span class="keyword">new</span> InvokerDelegate&lt;&gt;(protocol.refer(serviceType, url), url, providerUrl);</span><br><span class="line">	        &#125;</span><br><span class="line">	    &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">	        logger.error(<span class="string">"Failed to refer invoker for interface:"</span> + serviceType + <span class="string">",url:("</span> + url + <span class="string">")"</span> + t.getMessage(), t);</span><br><span class="line">	    &#125;</span><br><span class="line">    &#125;    </span><br><span class="line">    ......</span><br><span class="line">    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="连接服务器"><a href="#连接服务器" class="headerlink" title="连接服务器"></a>连接服务器</h3><p>从zk上获取一个服务后，接下来的工作就是创建到这个服务器的连接了。</p>
+<p>上面进入了<code>DubboProtocol</code>的refer()</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;T&gt; <span class="function">Invoker&lt;T&gt; <span class="title">refer</span><span class="params">(Class&lt;T&gt; type, URL url)</span> <span class="keyword">throws</span> RpcException </span>&#123;</span><br><span class="line">    <span class="comment">//Consumer的异步转同步是在这里做的</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> AsyncToSyncInvoker&lt;&gt;(protocolBindingRefer(type, url));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> &lt;T&gt; <span class="function">Invoker&lt;T&gt; <span class="title">protocolBindingRefer</span><span class="params">(Class&lt;T&gt; serviceType, URL url)</span> <span class="keyword">throws</span> RpcException </span>&#123;</span><br><span class="line">    optimizeSerialization(url);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//create rpc invoker.</span></span><br><span class="line">    <span class="comment">//终于看见了真正的Invoker</span></span><br><span class="line">    DubboInvoker&lt;T&gt; invoker = <span class="keyword">new</span> DubboInvoker&lt;T&gt;(serviceType, url, getClients(url), invokers);</span><br><span class="line">    invokers.add(invoker);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> invoker;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> ExchangeClient[] getClients(URL url) &#123;</span><br><span class="line">    <span class="comment">// whether to share connection</span></span><br><span class="line">    <span class="keyword">boolean</span> useShareConnect = <span class="keyword">false</span>;</span><br><span class="line">    <span class="comment">//这个配置若=0，则使用已创建的clients</span></span><br><span class="line">    <span class="comment">//若&lt;&gt;0, 则每次调用都创建新的clients</span></span><br><span class="line">    <span class="keyword">int</span> connections = url.getParameter(CONNECTIONS_KEY, <span class="number">0</span>);</span><br><span class="line">    List&lt;ReferenceCountExchangeClient&gt; shareClients = <span class="keyword">null</span>;</span><br><span class="line">    <span class="comment">// if not configured, connection is shared, otherwise, one connection for one service</span></span><br><span class="line">    <span class="keyword">if</span> (connections == <span class="number">0</span>) &#123;</span><br><span class="line">        useShareConnect = <span class="keyword">true</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * The xml configuration should have a higher priority than properties.</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="comment">//这里实际上是个简单的连接池</span></span><br><span class="line">        String shareConnectionsStr = url.getParameter(SHARE_CONNECTIONS_KEY, (String) <span class="keyword">null</span>);</span><br><span class="line">        connections = Integer.parseInt(StringUtils.isBlank(shareConnectionsStr) ? ConfigUtils.getProperty(SHARE_CONNECTIONS_KEY,</span><br><span class="line">                DEFAULT_SHARE_CONNECTIONS) : shareConnectionsStr);</span><br><span class="line">        shareClients = getSharedClient(url, connections);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ExchangeClient[] clients = <span class="keyword">new</span> ExchangeClient[connections];</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; clients.length; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (useShareConnect) &#123;</span><br><span class="line">            clients[i] = shareClients.get(i);</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            clients[i] = initClient(url);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> clients;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//看一下单个client怎么创建的</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> ExchangeClient <span class="title">initClient</span><span class="params">(URL url)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//默认netty</span></span><br><span class="line">    String str = url.getParameter(CLIENT_KEY, url.getParameter(SERVER_KEY, DEFAULT_REMOTING_CLIENT));</span><br><span class="line"></span><br><span class="line">    <span class="comment">//codec</span></span><br><span class="line">    url = url.addParameter(CODEC_KEY, DubboCodec.NAME);</span><br><span class="line">    <span class="comment">// enable heartbeat by default</span></span><br><span class="line">    url = url.addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// BIO is not allowed since it has severe performance issue.</span></span><br><span class="line">    <span class="keyword">if</span> (str != <span class="keyword">null</span> &amp;&amp; str.length() &gt; <span class="number">0</span> &amp;&amp; !ExtensionLoader.getExtensionLoader(Transporter<span class="class">.<span class="keyword">class</span>).<span class="title">hasExtension</span>(<span class="title">str</span>)) </span>&#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(<span class="string">"Unsupported client type: "</span> + str + <span class="string">","</span> +</span><br><span class="line">                " supported client type is " + StringUtils.join(ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions(), " "));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ExchangeClient client;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// connection should be lazy</span></span><br><span class="line">        <span class="keyword">if</span> (url.getParameter(LAZY_CONNECT_KEY, <span class="keyword">false</span>)) &#123;</span><br><span class="line">            client = <span class="keyword">new</span> LazyConnectExchangeClient(url, requestHandler);</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">//这里和Provider创建server的过程基本一样了。</span></span><br><span class="line">            client = Exchangers.connect(url, requestHandler);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">catch</span> (RemotingException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(<span class="string">"Fail to create remoting client for service("</span> + url + <span class="string">"): "</span> + e.getMessage(), e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> client;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>到这里一个Consumer就启动可以调用了。Provider会创建一系列的Handler用于处理数据，这些Handler同样适用于Consumer。</p>
+<p>线程池有一点不太一样，Provider默认使用”fixed”线程池，Consumer默认使用”cached”；</p>
+<p>对于Request，由于client的数目有限，因此使用的线程数也是有限的，不会无限创建新的线程。对于Response，则会使用cached线程池处理。</p>
+<hr>
+<p><em>参考文献</em></p>
+<p><a href="http://dubbo.apache.org/zh-cn/index.html" target="_blank" rel="noopener">http://dubbo.apache.org/zh-cn/index.html</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      
+      
+      
+      <div>
+        <ul class="post-copyright">
+          <li class="post-copyright-author">
+          <strong>本文作者:  </strong>Yangpeng</a>
+          </li>
+          <li class="post-copyright-link">
+          <strong>本文链接:  </strong>
+          <a href="/2020/01/14/Dubbo-Consumer-2/" target="_blank" title="Dubbo Consumer(2)">http://youngest.cool/2020/01/14/Dubbo-Consumer-2/</a>
+          </li>
+          <li class="post-copyright-license">
+            <strong>版权声明:   </strong>
+            本博客所有文章除特别声明外，均采用 <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" title="Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)">CC BY-NC-ND 4.0</a>
+            许可协议。转载请注明出处
+          </li>
+         
+        </ul>
+<div>
+
+      
+      
+        
+	<div id="comment">
+		<!-- 国内Valine评论系统 -->
+		<div id="lv-container" data-id="city" data-uid="Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz" style="margin-top:45px"></div>
+		<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+		<script src='//unpkg.com/valine/dist/Valine.min.js'></script>
+		<script>
+        new Valine({
+            el: '#lv-container',
+            appId: 'Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz',
+            appKey: 'IOJj3idrR64NvJ7CM41rhDHT',
+            notify: false, 
+    		verify: false, 
+    		avatar: 'monsterid', 
+    		placeholder: '说点什么吧!'
+        })
+        </script>
+	
+
+	</div>
+
+
+
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2020/01/13/Dubbo-Consumer/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">Dubbo Consumer</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+<!-- Table of Contents -->
+
+  <aside id="toc-sidebar" class="toc-hide">
+    <div id="toc" class="toc-article">
+    <strong class="toc-title">文章目录</strong>
+    
+        <ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#订阅服务"><span class="nav-number">1.</span> <span class="nav-text">订阅服务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#连接服务器"><span class="nav-number">2.</span> <span class="nav-text">连接服务器</span></a></li></ol>
+    
+    </div>
+  </aside>
+
+</section>
+        
+      </div>
+      
+      <footer id="footer">
+  
+
+  <div class="container">
+      	<div class="row">
+	      <p> Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/iTimeTraveler/hexo-theme-hiker" target="_blank">Hexo-theme-hiker</a> </p>
+	      <p id="copyRightEn">Copyright &copy; 2013 - 2020 Young All Rights Reserved.</p>
+	      
+	      
+    		<p class="busuanzi_uv">
+				访客数 : <span id="busuanzi_value_site_uv"></span> |  
+				访问量 : <span id="busuanzi_value_site_pv"></span>
+		    </p>
+  		   
+		</div>
+
+		
+  </div>
+</footer>
+
+
+<!-- min height -->
+
+<script>
+    var wrapdiv = document.getElementById("wrap");
+    var contentdiv = document.getElementById("content");
+    var allheader = document.getElementById("allheader");
+
+    wrapdiv.style.minHeight = document.body.offsetHeight + "px";
+    if (allheader != null) {
+      contentdiv.style.minHeight = document.body.offsetHeight - allheader.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    } else {
+      contentdiv.style.minHeight = document.body.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    }
+</script>
+    </div>
+    <!-- <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+  
+    <a href="/tags" class="mobile-nav-link">Tags</a>
+  
+</nav> -->
+    
+
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/scripts.js"></script>
+
+
+
+
+
+  
+<script src="/js/dialog.js"></script>
+
+
+
+
+
+
+
+
+
+	<div style="display: none;">
+    <script src="https://s95.cnzz.com/z_stat.php?id=1260716016&web_id=1260716016" language="JavaScript"></script>
+  </div>
+
+
+
+	<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
+	</script>
+
+
+
+
+
+
+  </div>
+
+  <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="myModalLabel">设置</h2>
+      </div>
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+
+
+      <div class="modal-body">
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne" onclick="javascript:setFontSize();" aria-expanded="true" aria-controls="collapseOne">
+              正文字号大小
+            </a>
+          </div>
+          <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+          <div class="panel-body">
+            您已调整页面字体大小
+          </div>
+        </div>
+      
+
+
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" onclick="javascript:setBackground();" aria-expanded="true" aria-controls="collapseTwo">
+              夜间护眼模式
+            </a>
+        </div>
+          <div id="collapseTwo" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingTwo">
+          <div class="panel-body">
+            夜间模式已经开启，再次单击按钮即可关闭 
+          </div>
+        </div>
+
+        <div>
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseThree" aria-expanded="true" aria-controls="collapseThree">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;关 于&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a>
+        </div>
+         <div id="collapseThree" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingThree">
+          <div class="panel-body">
+            Young
+          </div>
+          <div class="panel-body">
+            Copyright © 2020 Yangpeng All Rights Reserved.
+          </div>
+        </div>
+      </div>
+
+
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <div class="modal-footer">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+  
+  <a id="rocket" href="#top" class=""></a>
+  <script type="text/javascript" src="/js/totop.js?v=1.0.0" async=""></script>
+  
+    <a id="menu-switch"><i class="fa fa-bars fa-lg"></i></a>
+  
+</body>
+</html>
