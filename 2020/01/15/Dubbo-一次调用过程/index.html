@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>dubbo 一次调用过程 | Young</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  
+    <meta name="keywords" content="AABBCC" />
+  
+  
+  
+  
+  <meta name="description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇文章里讲到Consumer通过DubboInvoker将客户端的请求发出去，这篇文章以Netty4为例接着分析从请求发出到收到返回值是一个什么样的过程。 先来一张RPC的数据流程图，后面根据这个图分析会更清晰一些(其中不包括Cluster、LoadBalance这些过程)     Provider和Consumer处理数据的流程差不多，所以这">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dubbo 一次调用过程">
+<meta property="og:url" content="http://youngest.cool/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/index.html">
+<meta property="og:site_name" content="Young">
+<meta property="og:description" content="本文所有讨论都基于Dubbo 2.7.2  上一篇文章里讲到Consumer通过DubboInvoker将客户端的请求发出去，这篇文章以Netty4为例接着分析从请求发出到收到返回值是一个什么样的过程。 先来一张RPC的数据流程图，后面根据这个图分析会更清晰一些(其中不包括Cluster、LoadBalance这些过程)     Provider和Consumer处理数据的流程差不多，所以这">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youngest.cool/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/header.jpg">
+<meta property="og:image" content="http://youngest.cool/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/round-trip.png">
+<meta property="article:published_time" content="2020-01-15T06:38:50.000Z">
+<meta property="article:modified_time" content="2020-01-16T09:12:34.025Z">
+<meta property="article:author" content="Yangpeng">
+<meta property="article:tag" content="Dubbo">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youngest.cool/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/header.jpg">
+  
+    <link rel="alternate" href="/atom.xml" title="Young" type="application/atom+xml">
+  
+
+  
+
+  <link rel="icon" href="/css/images/kkk.png">
+  <link rel="apple-touch-icon" href="/css/images/kkk.png">
+  <!-- google的font加载太慢了，先注掉。 https://cdn.baomitu.com/index/fonts 这里可以找到字体库 -->
+  
+    <!-- <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css"> -->
+  
+  <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans|Montserrat:700" rel="stylesheet" type="text/css"> -->
+  <!-- <link href="https://fonts.googleapis.com/css?family=Roboto:400,300,300italic,400italic" rel="stylesheet" type="text/css"> -->
+  <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+  <style type="text/css">
+    @font-face{font-family:futura-pt; src:url("css/fonts/FuturaPTBold.otf") format("woff");font-weight:500;font-style:normal;}
+    @font-face{font-family:futura-pt-light; src:url("css/fonts/FuturaPTBook.otf") format("woff");font-weight:lighter;font-style:normal;}
+    @font-face{font-family:futura-pt-italic; src:url("css/fonts/FuturaPTBookOblique.otf") format("woff");font-weight:400;font-style:italic;}
+}
+
+  </style>
+  
+<link rel="stylesheet" href="/css/style.css">
+
+
+  
+<script src="/js/jquery-3.1.1.min.js"></script>
+
+  
+<script src="/js/bootstrap.js"></script>
+
+
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" href="/css/bootstrap.css" >
+
+  
+    
+<link rel="stylesheet" href="/css/dialog.css">
+
+  
+
+  
+
+  
+    <link rel="stylesheet" href="/css/header-post.css" >
+  
+
+  
+  
+  
+
+<meta name="generator" content="Hexo 4.1.1"></head>
+
+
+
+  <body data-spy="scroll" data-target="#toc" data-offset="50">
+
+
+  
+  <div id="container">
+    <div id="wrap">
+      
+        <header>
+
+    <div id="allheader" class="navbar navbar-default navbar-static-top" role="navigation">
+        <div class="navbar-inner">
+          
+          <div class="container"> 
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+
+            
+              <a class="brand" style="border-width: 0;">
+                <p>Young</p>
+              </a>
+            
+            
+            <div class="navbar-collapse collapse">
+              <ul class="hnav navbar-nav">
+                
+                  <li> <a class="main-nav-link" href="/">首页</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/archives">归档</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/categories">分类</a> </li>
+                
+                  <li> <a class="main-nav-link" href="/tags">标签</a> </li>
+                
+                  <li><div id="search-form-wrap">
+
+    <form class="search-form">
+        <input type="text" class="ins-search-input search-form-input" placeholder="" />
+        <button type="submit" class="search-form-submit"></button>
+    </form>
+    <div class="ins-search">
+    <div class="ins-search-mask"></div>
+    <div class="ins-search-container">
+        <div class="ins-input-wrapper">
+            <input type="text" class="ins-search-input" placeholder="请输入关键词..." />
+            <span class="ins-close ins-selectable"><i class="fa fa-times-circle"></i></span>
+        </div>
+        <div class="ins-section-wrapper">
+            <div class="ins-section-container"></div>
+        </div>
+    </div>
+</div>
+<script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: '文章',
+            PAGES: '页面',
+            CATEGORIES: '分类',
+            TAGS: '标签',
+            UNTITLED: '(无标题)',
+        },
+        ROOT_URL: '/',
+        CONTENT_URL: '/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+
+</div></li>
+            </div>
+          </div>
+                
+      </div>
+    </div>
+
+</header>
+
+
+
+      
+            
+      <div id="content" class="outer">
+        
+          <section id="main" style="float:none;"> <article id="post-Dubbo-一次调用过程" style="width: 100%; float:left;" class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" class="article-title" itemprop="name">
+      Dubbo 一次调用过程
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/" class="article-date">
+	  <time datetime="2020-01-15T06:38:50.000Z" itemprop="datePublished">2020-01-15</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/RPC/">RPC</a>
+
+      
+	<a class="article-views">
+	<span id="busuanzi_container_page_pv">
+		阅读量<span id="busuanzi_value_page_pv"></span>
+	</span>
+	</a>
+
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <img src="/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/header.jpg" class="" title="header">
+
+<blockquote>
+<p>本文所有讨论都基于Dubbo 2.7.2</p>
+</blockquote>
+<p><a href="https://youngest.cool/2020/01/14/Dubbo-Consumer-2/">上一篇</a>文章里讲到Consumer通过<code>DubboInvoker</code>将客户端的请求发出去，这篇文章以Netty4为例接着分析从请求发出到收到返回值是一个什么样的过程。</p>
+<p>先来一张RPC的数据流程图，后面根据这个图分析会更清晰一些(其中不包括Cluster、LoadBalance这些过程)</p>
+<img src="/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/round-trip.png" class="" title="round-trip">
+
+
+<blockquote>
+<p>Provider和Consumer处理数据的流程差不多，所以这里只分析一下Consumer端的流程</p>
+</blockquote>
+<h3 id="发送请求"><a href="#发送请求" class="headerlink" title="发送请求"></a>发送请求</h3><h4 id="DubboInvoker"><a href="#DubboInvoker" class="headerlink" title="DubboInvoker"></a>DubboInvoker</h4><p>经过Cluster、LoadBalance等重重考验，终于来到了真正的Invoker里，Dubbo协议会进入<code>DubboInvoker</code>，这个类会将RpcInvocation发出去。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> Result <span class="title">doInvoke</span><span class="params">(<span class="keyword">final</span> Invocation invocation)</span> <span class="keyword">throws</span> Throwable </span>&#123;</span><br><span class="line">    RpcInvocation inv = (RpcInvocation) invocation;</span><br><span class="line">    <span class="keyword">final</span> String methodName = RpcUtils.getMethodName(invocation);</span><br><span class="line">    inv.setAttachment(PATH_KEY, getUrl().getPath());</span><br><span class="line">    inv.setAttachment(VERSION_KEY, version);</span><br><span class="line"></span><br><span class="line">    ExchangeClient currentClient;</span><br><span class="line">    <span class="comment">//获取一个client，一个client可以同时发送多个请求</span></span><br><span class="line">    <span class="keyword">if</span> (clients.length == <span class="number">1</span>) &#123;</span><br><span class="line">        currentClient = clients[<span class="number">0</span>];</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        currentClient = clients[index.getAndIncrement() % clients.length];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">boolean</span> isOneway = RpcUtils.isOneway(getUrl(), invocation);</span><br><span class="line">        <span class="keyword">int</span> timeout = getUrl().getMethodParameter(methodName, TIMEOUT_KEY, DEFAULT_TIMEOUT);</span><br><span class="line">        <span class="keyword">if</span> (isOneway) &#123;</span><br><span class="line">            <span class="comment">//不需要返回值的调用</span></span><br><span class="line">            <span class="keyword">boolean</span> isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, <span class="keyword">false</span>);</span><br><span class="line">            <span class="comment">//由于这种调用不需要返回值，因此需要确认请求是否发送出去。</span></span><br><span class="line">            <span class="comment">//isSent决定是否检查</span></span><br><span class="line">            <span class="comment">//是否发出去总得有个时间限制吧，但这里为啥没使用上面method的timeout呢？</span></span><br><span class="line">            <span class="comment">//因为从send()方法可看出，若没有传timeout的话会从url上获取timeout，也就是获取了实例级别的timeout而不是方法级别的timeout，为啥？</span></span><br><span class="line">            currentClient.send(inv, isSent);</span><br><span class="line">            RpcContext.getContext().setFuture(<span class="keyword">null</span>);</span><br><span class="line">            <span class="keyword">return</span> AsyncRpcResult.newDefaultAsyncResult(invocation);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            AsyncRpcResult asyncRpcResult = <span class="keyword">new</span> AsyncRpcResult(inv);</span><br><span class="line">            <span class="comment">//这里没有获取isSent参数，后面还是会获取的，默认false</span></span><br><span class="line">            CompletableFuture&lt;Object&gt; responseFuture = currentClient.request(inv, timeout);</span><br><span class="line">            <span class="comment">//这里相当于回调，记为A</span></span><br><span class="line">            responseFuture.whenComplete((obj, t) -&gt; &#123;</span><br><span class="line">                <span class="keyword">if</span> (t != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    asyncRpcResult.completeExceptionally(t);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    asyncRpcResult.complete((AppResponse) obj);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;); </span><br><span class="line">            RpcContext.getContext().setFuture(<span class="keyword">new</span> FutureAdapter(asyncRpcResult));</span><br><span class="line">            <span class="comment">//由AsyncToSyncInvoker负责同步等待</span></span><br><span class="line">            <span class="keyword">return</span> asyncRpcResult;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (TimeoutException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(RpcException.TIMEOUT_EXCEPTION, <span class="string">"Invoke remote method timeout. method: "</span> + invocation.getMethodName() + <span class="string">", provider: "</span> + getUrl() + <span class="string">", cause: "</span> + e.getMessage(), e);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (RemotingException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RpcException(RpcException.NETWORK_EXCEPTION, <span class="string">"Failed to invoke remote method: "</span> + invocation.getMethodName() + <span class="string">", provider: "</span> + getUrl() + <span class="string">", cause: "</span> + e.getMessage(), e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="HeaderExchangeChannel"><a href="#HeaderExchangeChannel" class="headerlink" title="HeaderExchangeChannel"></a>HeaderExchangeChannel</h4><p>这个类是<code>HeaderExchangeClient</code>中负责发送数据的。上面的两个方法send()和request()如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//HeaderExchangeClient</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">send</span><span class="params">(Object message, <span class="keyword">boolean</span> sent)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="comment">//channel就是HeaderExchangeChannel</span></span><br><span class="line">    channel.send(message, sent);</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">public</span> CompletableFuture&lt;Object&gt; <span class="title">request</span><span class="params">(Object request)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> channel.request(request);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//下面只分析request()</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> CompletableFuture&lt;Object&gt; <span class="title">request</span><span class="params">(Object request, <span class="keyword">int</span> timeout)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (closed) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RemotingException(<span class="keyword">this</span>.getLocalAddress(), <span class="keyword">null</span>, <span class="string">"Failed to send request "</span> + request + <span class="string">", cause: The channel "</span> + <span class="keyword">this</span> + <span class="string">" is closed!"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// create request.</span></span><br><span class="line">    Request req = <span class="keyword">new</span> Request();</span><br><span class="line">    req.setVersion(Version.getProtocolVersion());</span><br><span class="line">    req.setTwoWay(<span class="keyword">true</span>);</span><br><span class="line">    req.setData(request);</span><br><span class="line">    <span class="comment">//这里会把request id与future保存起来，等reponse返回时，根据id去更新future</span></span><br><span class="line">    <span class="comment">//这里也启动了timeout check task</span></span><br><span class="line">    DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//这个channel对应了下层的网络框架。</span></span><br><span class="line">        <span class="comment">//Netty的话，就是NettyChannel</span></span><br><span class="line">        channel.send(req);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (RemotingException e) &#123;</span><br><span class="line">        future.cancel();</span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> future;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="NettyChannel"><a href="#NettyChannel" class="headerlink" title="NettyChannel"></a>NettyChannel</h4><p>这个类是Duboo上层代码与Netty的粘合剂，里面会直接操作Netty的API</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//NettyChannel里的这个属性实际就是Netty定义的Channel</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> Channel channel;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">send</span><span class="params">(Object message, <span class="keyword">boolean</span> sent)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">super</span>.send(message, sent);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">boolean</span> success = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">int</span> timeout = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//写入Netty</span></span><br><span class="line">        ChannelFuture future = channel.writeAndFlush(message);</span><br><span class="line">        <span class="keyword">if</span> (sent) &#123;</span><br><span class="line">            <span class="comment">//需要检查是否成功写入</span></span><br><span class="line">            timeout = getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);</span><br><span class="line">            <span class="comment">//注意：这里会阻塞</span></span><br><span class="line">            success = future.await(timeout);</span><br><span class="line">        &#125;</span><br><span class="line">        Throwable cause = future.cause();</span><br><span class="line">        <span class="keyword">if</span> (cause != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> cause;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RemotingException(<span class="keyword">this</span>, <span class="string">"Failed to send message "</span> + message + <span class="string">" to "</span> + getRemoteAddress() + <span class="string">", cause: "</span> + e.getMessage(), e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!success) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RemotingException(<span class="keyword">this</span>, <span class="string">"Failed to send message "</span> + message + <span class="string">" to "</span> + getRemoteAddress()</span><br><span class="line">                + <span class="string">"in timeout("</span> + timeout + <span class="string">"ms) limit"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从上面的代码可以看出，无论是否设置<mark>sent=true</mark>，都会检查timeout。只是当sent=true时，会阻塞当前线程；sent=false时利用一个timeout check task线程检查，不会阻塞当前线程。</p>
+<p>通常我们会把timeout赋给socket，由操作系统判断是否timeout，如果timeout了，抛出异常，应用程序捕获。但Dubbo自己实现了这个检查。</p>
+<h4 id="NettyClientHandler"><a href="#NettyClientHandler" class="headerlink" title="NettyClientHandler"></a>NettyClientHandler</h4><p>Netty的写入首先就会碰到<code>NettyClientHandler</code>，看一下这个类的write()，前面的writeAndFlush()会走这个方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="comment">//继续写</span></span><br><span class="line">    <span class="keyword">super</span>.write(ctx, msg, promise);</span><br><span class="line">    <span class="keyword">final</span> NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">boolean</span> isRequest = msg <span class="keyword">instanceof</span> Request;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// We add listeners to make sure our out bound event is correct.</span></span><br><span class="line">    <span class="comment">// If our out bound event has an error (in most cases the encoder fails),</span></span><br><span class="line">    <span class="comment">// we need to have the request return directly instead of blocking the invoke process.</span></span><br><span class="line">    <span class="comment">//添加了监听器</span></span><br><span class="line">    promise.addListener(future -&gt; &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (future.isSuccess()) &#123;</span><br><span class="line">                <span class="comment">// if our future is success, mark the future to sent.</span></span><br><span class="line">                <span class="comment">// 如上图，这个handler是MultiMessageHandler，这个sent event会从这个handler向上走</span></span><br><span class="line">                handler.sent(channel, msg);</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            Throwable t = future.cause();</span><br><span class="line">            <span class="keyword">if</span> (t != <span class="keyword">null</span> &amp;&amp; isRequest) &#123;</span><br><span class="line">                <span class="comment">//如果没有写成功，mock一个假的Response，这个Response携带错误信息</span></span><br><span class="line">                Request request = (Request) msg;</span><br><span class="line">                Response response = buildErrorResponse(request, t);</span><br><span class="line">                handler.received(channel, response);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            NettyChannel.removeChannelIfDisconnected(ctx.channel());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>由于这个类也处理inbound事件，我们直接看一下这部分代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">channelRead</span><span class="params">(ChannelHandlerContext ctx, Object msg)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//只是简单地转发</span></span><br><span class="line">        <span class="comment">//这个handler就是MultiMessageHandler，从图中可以清晰的看出来</span></span><br><span class="line">        handler.received(channel, msg);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        NettyChannel.removeChannelIfDisconnected(ctx.channel());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="接收请求"><a href="#接收请求" class="headerlink" title="接收请求"></a>接收请求</h3><p>从Netty接收到请求后，Dubbo自定义了<code>ChannelHandler</code>处理这些请求，我们直接从比较重要的类开始。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ChannelHandler</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">connected</span><span class="params">(Channel channel)</span> <span class="keyword">throws</span> RemotingException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">disconnected</span><span class="params">(Channel channel)</span> <span class="keyword">throws</span> RemotingException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//这个方法在发送请求时才使用</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">sent</span><span class="params">(Channel channel, Object message)</span> <span class="keyword">throws</span> RemotingException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">received</span><span class="params">(Channel channel, Object message)</span> <span class="keyword">throws</span> RemotingException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">caught</span><span class="params">(Channel channel, Throwable exception)</span> <span class="keyword">throws</span> RemotingException</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="DispatcherHandler"><a href="#DispatcherHandler" class="headerlink" title="DispatcherHandler"></a>DispatcherHandler</h4><p>这个类实际并不存在，只是表示了这里会根据配置初始化一个线程池，并把上游的请求转发到线程池里。默认是<code>AllChannelHandler</code>，Dubbo里现在提供了以下几种Dispatcher，它们的主要区别就是是否要把当前请求放入线程池处理。</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">all</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.all.AllDispatcher</span></span><br><span class="line"><span class="attr">direct</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.direct.DirectDispatcher</span></span><br><span class="line"><span class="attr">message</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.message.MessageOnlyDispatcher</span></span><br><span class="line"><span class="attr">execution</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.execution.ExecutionDispatcher</span></span><br><span class="line"><span class="attr">connection</span>=<span class="string">org.apache.dubbo.remoting.transport.dispatcher.connection.ConnectionOrderedDispatcher</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//AllChannelHandler</span></span><br><span class="line"><span class="comment">//可以看出，下面的请求都提交给了线程池</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">connected</span><span class="params">(Channel channel)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    ExecutorService executor = getExecutorService();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        executor.execute(<span class="keyword">new</span> ChannelEventRunnable(channel, handler, ChannelState.CONNECTED));</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> ExecutionException(<span class="string">"connect event"</span>, channel, getClass() + <span class="string">" error when process connected event ."</span>, t);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">disconnected</span><span class="params">(Channel channel)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    ExecutorService executor = getExecutorService();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        executor.execute(<span class="keyword">new</span> ChannelEventRunnable(channel, handler, ChannelState.DISCONNECTED));</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> ExecutionException(<span class="string">"disconnect event"</span>, channel, getClass() + <span class="string">" error when process disconnected event ."</span>, t);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="DecodeHandler"><a href="#DecodeHandler" class="headerlink" title="DecodeHandler"></a>DecodeHandler</h4><p><a href="https://youngest.cool/2020/01/10/Dubbo-协议解析/#more">这一篇</a>文章讲过Dubbo协议的编解码。其中有一步骤是判断decode是否要在I/O线程(注：这里不一定是I/O线程，也可能是线程池的线程)里完成，如果配置为<strong>否</strong>的话，当时就没有decode。那在哪里decode呢？就是在这个类里。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">received</span><span class="params">(Channel channel, Object message)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="comment">//decode的步骤这里就不展开了</span></span><br><span class="line">    <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Decodeable) &#123;</span><br><span class="line">        decode(message);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Request) &#123;</span><br><span class="line">        decode(((Request) message).getData());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Response) &#123;</span><br><span class="line">        decode(((Response) message).getResult());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    handler.received(channel, message);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="HeaderExchangeHandler"><a href="#HeaderExchangeHandler" class="headerlink" title="HeaderExchangeHandler"></a>HeaderExchangeHandler</h4><p>解码后由这个类进行最后的处理</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">received</span><span class="params">(Channel channel, Object message)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());</span><br><span class="line">    <span class="keyword">final</span> ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Request) &#123;</span><br><span class="line">            <span class="comment">// handle request.</span></span><br><span class="line">            Request request = (Request) message;</span><br><span class="line">            <span class="keyword">if</span> (request.isEvent()) &#123;</span><br><span class="line">                handlerEvent(channel, request);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (request.isTwoWay()) &#123;</span><br><span class="line">                    handleRequest(exchangeChannel, request);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    handler.received(exchangeChannel, request.getData());</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (message <span class="keyword">instanceof</span> Response) &#123;</span><br><span class="line">            <span class="comment">//我们看一下这里</span></span><br><span class="line">            handleResponse(channel, (Response) message);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (message <span class="keyword">instanceof</span> String) &#123;</span><br><span class="line">            <span class="keyword">if</span> (isClientSide(channel)) &#123;</span><br><span class="line">                Exception e = <span class="keyword">new</span> Exception(<span class="string">"Dubbo client can not supported string message: "</span> + message + <span class="string">" in channel: "</span> + channel + <span class="string">", url: "</span> + channel.getUrl());</span><br><span class="line">                logger.error(e.getMessage(), e);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                String echo = handler.telnet(channel, (String) message);</span><br><span class="line">                <span class="keyword">if</span> (echo != <span class="keyword">null</span> &amp;&amp; echo.length() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                    channel.send(echo);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            handler.received(exchangeChannel, message);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        HeaderExchangeChannel.removeChannelIfDisconnected(channel);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">handleResponse</span><span class="params">(Channel channel, Response response)</span> <span class="keyword">throws</span> RemotingException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (response != <span class="keyword">null</span> &amp;&amp; !response.isHeartbeat()) &#123;</span><br><span class="line">        DefaultFuture.received(channel, response);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">received</span><span class="params">(Channel channel, Response response, <span class="keyword">boolean</span> timeout)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//还记得前面发送Request时，将id和future保存起来了吗？这里会使用到</span></span><br><span class="line">        DefaultFuture future = FUTURES.remove(response.getId());</span><br><span class="line">        <span class="keyword">if</span> (future != <span class="keyword">null</span>) &#123;</span><br><span class="line">            Timeout t = future.timeoutCheckTask;</span><br><span class="line">            <span class="keyword">if</span> (!timeout) &#123;</span><br><span class="line">                <span class="comment">// decrease Time</span></span><br><span class="line">                <span class="comment">//cancel timeout task</span></span><br><span class="line">                t.cancel();</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">//完成future，前面DubboInvoker调用request()后，注册了一个回调A，这里会调用这个回调。如果上层的业务线程采用的是同步阻塞模式，此时也会返回</span></span><br><span class="line">            future.doReceived(response);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            logger.warn(<span class="string">"The timeout response finally returned at "</span></span><br><span class="line">                    + (<span class="keyword">new</span> SimpleDateFormat(<span class="string">"yyyy-MM-dd HH:mm:ss.SSS"</span>).format(<span class="keyword">new</span> Date()))</span><br><span class="line">                    + <span class="string">", response "</span> + response</span><br><span class="line">                    + (channel == <span class="keyword">null</span> ? <span class="string">""</span> : <span class="string">", channel: "</span> + channel.getLocalAddress()</span><br><span class="line">                    + <span class="string">" -&gt; "</span> + channel.getRemoteAddress()));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        CHANNELS.remove(response.getId());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>到这里一次RPC请求就完成了，总体过程并不复杂。这个过程中，Dubbo通过SPI机制提供了很多可以替换的模块，比如底层的Netty网络模块，中间使用到的线程池种类等。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      
+      
+      
+      <div>
+        <ul class="post-copyright">
+          <li class="post-copyright-author">
+          <strong>本文作者:  </strong>Yangpeng</a>
+          </li>
+          <li class="post-copyright-link">
+          <strong>本文链接:  </strong>
+          <a href="/2020/01/15/Dubbo-一次调用过程/" target="_blank" title="Dubbo 一次调用过程">http://youngest.cool/2020/01/15/Dubbo-一次调用过程/</a>
+          </li>
+          <li class="post-copyright-license">
+            <strong>版权声明:   </strong>
+            本博客所有文章除特别声明外，均采用 <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" title="Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)">CC BY-NC-ND 4.0</a>
+            许可协议。转载请注明出处
+          </li>
+         
+        </ul>
+<div>
+
+      
+      
+        
+	<div id="comment">
+		<!-- 国内Valine评论系统 -->
+		<div id="lv-container" data-id="city" data-uid="Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz" style="margin-top:45px"></div>
+		<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+		<script src='//unpkg.com/valine/dist/Valine.min.js'></script>
+		<script>
+        new Valine({
+            el: '#lv-container',
+            appId: 'Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz',
+            appKey: 'IOJj3idrR64NvJ7CM41rhDHT',
+            notify: false, 
+    		verify: false, 
+    		avatar: 'monsterid', 
+    		placeholder: '说点什么吧!'
+        })
+        </script>
+	
+
+	</div>
+
+
+
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2020/01/14/Dubbo-Consumer-2/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">Dubbo Consumer(2)</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+<!-- Table of Contents -->
+
+  <aside id="toc-sidebar" class="toc-hide">
+    <div id="toc" class="toc-article">
+    <strong class="toc-title">文章目录</strong>
+    
+        <ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#发送请求"><span class="nav-number">1.</span> <span class="nav-text">发送请求</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#DubboInvoker"><span class="nav-number">1.1.</span> <span class="nav-text">DubboInvoker</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#HeaderExchangeChannel"><span class="nav-number">1.2.</span> <span class="nav-text">HeaderExchangeChannel</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#NettyChannel"><span class="nav-number">1.3.</span> <span class="nav-text">NettyChannel</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#NettyClientHandler"><span class="nav-number">1.4.</span> <span class="nav-text">NettyClientHandler</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#接收请求"><span class="nav-number">2.</span> <span class="nav-text">接收请求</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#DispatcherHandler"><span class="nav-number">2.1.</span> <span class="nav-text">DispatcherHandler</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#DecodeHandler"><span class="nav-number">2.2.</span> <span class="nav-text">DecodeHandler</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#HeaderExchangeHandler"><span class="nav-number">2.3.</span> <span class="nav-text">HeaderExchangeHandler</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol>
+    
+    </div>
+  </aside>
+
+</section>
+        
+      </div>
+      
+      <footer id="footer">
+  
+
+  <div class="container">
+      	<div class="row">
+	      <p> Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/iTimeTraveler/hexo-theme-hiker" target="_blank">Hexo-theme-hiker</a> </p>
+	      <p id="copyRightEn">Copyright &copy; 2013 - 2020 Young All Rights Reserved.</p>
+	      
+	      
+    		<p class="busuanzi_uv">
+				访客数 : <span id="busuanzi_value_site_uv"></span> |  
+				访问量 : <span id="busuanzi_value_site_pv"></span>
+		    </p>
+  		   
+		</div>
+
+		
+  </div>
+</footer>
+
+
+<!-- min height -->
+
+<script>
+    var wrapdiv = document.getElementById("wrap");
+    var contentdiv = document.getElementById("content");
+    var allheader = document.getElementById("allheader");
+
+    wrapdiv.style.minHeight = document.body.offsetHeight + "px";
+    if (allheader != null) {
+      contentdiv.style.minHeight = document.body.offsetHeight - allheader.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    } else {
+      contentdiv.style.minHeight = document.body.offsetHeight - document.getElementById("footer").offsetHeight + "px";
+    }
+</script>
+    </div>
+    <!-- <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+  
+    <a href="/tags" class="mobile-nav-link">Tags</a>
+  
+</nav> -->
+    
+
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+  
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+  
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+
+
+<script src="/js/scripts.js"></script>
+
+
+
+
+
+  
+<script src="/js/dialog.js"></script>
+
+
+
+
+
+
+
+
+
+	<div style="display: none;">
+    <script src="https://s95.cnzz.com/z_stat.php?id=1260716016&web_id=1260716016" language="JavaScript"></script>
+  </div>
+
+
+
+	<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js">
+	</script>
+
+
+
+
+
+
+  </div>
+
+  <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="myModalLabel">设置</h2>
+      </div>
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+
+
+      <div class="modal-body">
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne" onclick="javascript:setFontSize();" aria-expanded="true" aria-controls="collapseOne">
+              正文字号大小
+            </a>
+          </div>
+          <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+          <div class="panel-body">
+            您已调整页面字体大小
+          </div>
+        </div>
+      
+
+
+          <div style="margin:6px;">
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseTwo" onclick="javascript:setBackground();" aria-expanded="true" aria-controls="collapseTwo">
+              夜间护眼模式
+            </a>
+        </div>
+          <div id="collapseTwo" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingTwo">
+          <div class="panel-body">
+            夜间模式已经开启，再次单击按钮即可关闭 
+          </div>
+        </div>
+
+        <div>
+            <a data-toggle="collapse" data-parent="#accordion" href="#collapseThree" aria-expanded="true" aria-controls="collapseThree">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;关 于&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a>
+        </div>
+         <div id="collapseThree" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingThree">
+          <div class="panel-body">
+            Young
+          </div>
+          <div class="panel-body">
+            Copyright © 2020 Yangpeng All Rights Reserved.
+          </div>
+        </div>
+      </div>
+
+
+      <hr style="margin-top:0px; margin-bottom:0px; width:80%; border-top: 1px solid #000;">
+      <hr style="margin-top:2px; margin-bottom:0px; width:80%; border-top: 3px solid #000;">
+      <div class="modal-footer">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+  
+  <a id="rocket" href="#top" class=""></a>
+  <script type="text/javascript" src="/js/totop.js?v=1.0.0" async=""></script>
+  
+    <a id="menu-switch"><i class="fa fa-bars fa-lg"></i></a>
+  
+</body>
+</html>
