@@ -14,19 +14,20 @@
   <meta name="description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。 Java序列化123456789101112131415">
 <meta property="og:type" content="article">
 <meta property="og:title" content="序列化协议">
-<meta property="og:url" content="http://youngest.cool/2019/12/21/hello-world/index.html">
+<meta property="og:url" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/index.html">
 <meta property="og:site_name" content="Young">
 <meta property="og:description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。 Java序列化123456789101112131415">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="http://youngest.cool/2019/12/21/hello-world/binary.jpg">
-<meta property="og:image" content="http://youngest.cool/2019/12/21/hello-world/protobuf.png">
+<meta property="og:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/binary.jpg">
+<meta property="og:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/protobuf.png">
+<meta property="og:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/300-example.png">
 <meta property="article:published_time" content="2019-12-21T08:21:21.201Z">
-<meta property="article:modified_time" content="2019-12-25T12:56:31.934Z">
+<meta property="article:modified_time" content="2020-01-19T07:05:32.058Z">
 <meta property="article:author" content="Yangpeng">
 <meta property="article:tag" content="Protobuf">
 <meta property="article:tag" content="Thrift">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://youngest.cool/2019/12/21/hello-world/binary.jpg">
+<meta name="twitter:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/binary.jpg">
   
     <link rel="alternate" href="/atom.xml" title="Young" type="application/atom+xml">
   
@@ -173,7 +174,7 @@
             
       <div id="content" class="outer">
         
-          <section id="main" style="float:none;"> <article id="post-hello-world" style="width: 100%; float:left;" class="article article-type-post" itemscope itemprop="blogPost" >
+          <section id="main" style="float:none;"> <article id="post-序列化" style="width: 100%; float:left;" class="article article-type-post" itemscope itemprop="blogPost" >
   <div id="articleInner" class="article-inner">
     
     
@@ -189,7 +190,7 @@
     
     <div class="article-meta">
       
-	<a href="/2019/12/21/hello-world/" class="article-date">
+	<a href="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/" class="article-date">
 	  <time datetime="2019-12-21T08:21:21.201Z" itemprop="datePublished">2019-12-21</time>
 	</a>
 
@@ -208,7 +209,7 @@
     </div>
     <div class="article-entry" itemprop="articleBody">
       
-        <img src="/2019/12/21/hello-world/binary.jpg" class="" title="binary">
+        <img src="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/binary.jpg" class="" title="binary">
 
 <blockquote>
 <p>序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。</p>
@@ -235,9 +236,9 @@
 
 
 <p>Protobuf总体的结构如下，所有字段会紧凑的排列在一起，默认顺序就是Java文件中定义的顺序。<br>其中value可以代表真实的数据，也可以代表一个field。</p>
-<img src="/2019/12/21/hello-world/protobuf.png" class="" title="protobuf">
+<img src="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/protobuf.png" class="" title="protobuf">
 
-<h4 id="key"><a href="#key" class="headerlink" title="key"></a>key</h4><p>key由两部分组合而成，第一部分是field_num，从1开始，也就是字段的顺序；第二部分wire_type，是Protobuf定义的一个数字-类型对应关系表，如下</p>
+<h4 id="key"><a href="#key" class="headerlink" title="key"></a>key</h4><p>key由两部分组合而成，第一部分是field_num，从1开始，也就是字段的顺序；第二部分wire_type，是Protobuf定义的一个<strong>数字-类型</strong>对应关系表，如下</p>
 <table>
 <thead>
 <tr>
@@ -281,18 +282,19 @@
 <blockquote>
 <p>很多场合都有这种设计，在一个byte里保存更多的信息</p>
 </blockquote>
-<h4 id="length"><a href="#length" class="headerlink" title="length"></a>length</h4><p>对应二进制数据，需要一个length指定byte的长度作为一组进行解析，否则就区分不开这些二进制了。<br>由于数字可以自描述，因此当序列化一个数字时，是没有这个字段的。</p>
+<h4 id="length"><a href="#length" class="headerlink" title="length"></a>length</h4><p>对于二进制数据，需要一个length指定长度进行拆分，否则就区分不开这些二进制了。由于数字可以自描述，因此当序列化一个数字时，是没有这个字段的。</p>
 <h4 id="value"><a href="#value" class="headerlink" title="value"></a>value</h4><p>首先需要说明的是，Protobuf里对数字采用了Little-Endian保存，这点和 Java 序列化不同。</p>
 <blockquote>
 <p>Little-Endian: 小地址保存低byte，大地址保存高byte</p>
-<p>Big-Endian: 小地址保存高byte，大地址保存低byte，这和我们的阅读顺序一致</p>
+<p>Big-Endian: 小地址保存高byte，大地址保存低byte，和我们的阅读顺序一致</p>
 </blockquote>
-<p>在Java里，一个int的保存需要4个byte，long的保存需要8个byte。对于较小的数字，比如1，就是31个0跟着1个1，这些0其实不需要但是也得保存。因此Protobuf采用了varint方法，简单讲，就是当存储一个整数时，不是固定地采用几个字节而是根据实际大小采用更适当的大小来保存，这样就能有效降低不必要的内存占用。</p>
+<p>在Java里，一个int的保存需要4个byte，long的保存需要8个byte。对于较小的数字，比如1，就是31个0跟着1个1，这些0其实是不需要的。因此Protobuf采用了varint方法，简单讲，就是当存储一个整数时，不是固定地采用若干个字节而是根据实际大小采用更适当的长度来保存，这样就能有效降低不必要的内存占用。</p>
 <blockquote>
-<p>UTF-8就是采用varint的方式对unicode进行编码</p>
+<p>varint的方式与UTF-8编码有些相似</p>
 </blockquote>
-<p>举个例子说明一下varint的基本原理</p>
-<p>300 = 0000 0001 0010 1100</p>
+<h5 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h5><p>举个例子说明一下varint的基本原理，例如对数字<strong>300</strong>进行编码，其二进制为<em>0000 0001 0010 1100</em></p>
+<img src="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/300-example.png" class="" title="300-example">
+
 <ol>
 <li><p>二进制从右边起7个为一组拆开</p>
 <p>00 0000010 0101100</p>
@@ -302,7 +304,7 @@
 </li>
 <li><p>填充这两组的第一个bit，填0还是1取决于后面的byte数</p>
 <p>10101100 00000010</p>
-<p>第一个bit称为<em>most significant bit</em> (msb)，1说明该byte与后面的1个byte是一组共同组成一个数字，0说明自己代表一个数字</p>
+<p>第一个bit称为<em>most significant bit</em> (msb)，1说明该byte与后面的1个byte共同组成一个数字，0说明当前byte独立表示一个数字</p>
 <p>10101100 00000010 = 0xac 0x02</p>
 </li>
 </ol>
@@ -349,7 +351,7 @@
           </li>
           <li class="post-copyright-link">
           <strong>本文链接:  </strong>
-          <a href="/2019/12/21/hello-world/" target="_blank" title="序列化协议">http://youngest.cool/2019/12/21/hello-world/</a>
+          <a href="/2019/12/21/序列化/" target="_blank" title="序列化协议">http://youngest.cool/2019/12/21/序列化/</a>
           </li>
           <li class="post-copyright-license">
             <strong>版权声明:   </strong>
@@ -413,7 +415,7 @@
     <div id="toc" class="toc-article">
     <strong class="toc-title">文章目录</strong>
     
-        <ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Java序列化"><span class="nav-number">1.</span> <span class="nav-text">Java序列化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二进制格式"><span class="nav-number">1.1.</span> <span class="nav-text">二进制格式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Protobuf"><span class="nav-number">2.</span> <span class="nav-text">Protobuf</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二进制格式-1"><span class="nav-number">2.1.</span> <span class="nav-text">二进制格式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#key"><span class="nav-number">2.1.1.</span> <span class="nav-text">key</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#length"><span class="nav-number">2.1.2.</span> <span class="nav-text">length</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#value"><span class="nav-number">2.1.3.</span> <span class="nav-text">value</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#手动生成序列化值"><span class="nav-number">2.1.4.</span> <span class="nav-text">手动生成序列化值</span></a></li></ol></li></ol></li></ol>
+        <ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Java序列化"><span class="nav-number">1.</span> <span class="nav-text">Java序列化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二进制格式"><span class="nav-number">1.1.</span> <span class="nav-text">二进制格式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Protobuf"><span class="nav-number">2.</span> <span class="nav-text">Protobuf</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二进制格式-1"><span class="nav-number">2.1.</span> <span class="nav-text">二进制格式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#key"><span class="nav-number">2.1.1.</span> <span class="nav-text">key</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#length"><span class="nav-number">2.1.2.</span> <span class="nav-text">length</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#value"><span class="nav-number">2.1.3.</span> <span class="nav-text">value</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#例子"><span class="nav-number">2.1.3.1.</span> <span class="nav-text">例子</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#手动生成序列化值"><span class="nav-number">2.1.4.</span> <span class="nav-text">手动生成序列化值</span></a></li></ol></li></ol></li></ol>
     
     </div>
   </aside>
@@ -428,7 +430,7 @@
   <div class="container">
       	<div class="row">
 	      <p> Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/iTimeTraveler/hexo-theme-hiker" target="_blank">Hexo-theme-hiker</a> </p>
-	      <p id="copyRightEn">Copyright &copy; 2013 - 2020 Young All Rights Reserved.</p>
+	      <p id="copyRightEn">Copyright &copy; 2019 - 2025 Young All Rights Reserved.</p>
 	      
 	      
     		<p class="busuanzi_uv">
