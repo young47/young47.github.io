@@ -11,21 +11,21 @@
   
   
   
-  <meta name="description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。 Java序列化123456789101112131415">
+  <meta name="description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了两种序列化协议：1. Java序列化；2. ProtoBuf序列化； Java序列化12345678910111213141516package com">
 <meta property="og:type" content="article">
 <meta property="og:title" content="序列化协议">
 <meta property="og:url" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/index.html">
 <meta property="og:site_name" content="Young">
-<meta property="og:description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。 Java序列化123456789101112131415">
+<meta property="og:description" content="序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。  本文简单介绍了两种序列化协议：1. Java序列化；2. ProtoBuf序列化； Java序列化12345678910111213141516package com">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/binary.jpg">
-<meta property="og:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/protobuf.png">
+<meta property="og:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/protobuf-2.png">
 <meta property="og:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/300-example.png">
 <meta property="article:published_time" content="2019-12-21T08:21:21.201Z">
-<meta property="article:modified_time" content="2020-01-19T07:05:32.058Z">
+<meta property="article:modified_time" content="2020-01-19T08:19:11.577Z">
 <meta property="article:author" content="Yangpeng">
 <meta property="article:tag" content="Protobuf">
-<meta property="article:tag" content="Thrift">
+<meta property="article:tag" content="java序列化">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="http://youngest.cool/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/binary.jpg">
   
@@ -214,7 +214,7 @@
 <blockquote>
 <p>序列化 (Serialization) 是将对象的状态信息转换为可以存储或传输的形式的过程。由于计算机底层都是通过二进制处理和保存数据，所以序列化实际就是探讨将对象的状态保存为二进制的过程，序列化协议规定了这个二进制的结构。</p>
 </blockquote>
-<p>本文简单介绍了三种序列化协议：1. Java序列化；2. ProtoBuf序列化；3. Thrift序列化。</p>
+<p>本文简单介绍了两种序列化协议：1. Java序列化；2. ProtoBuf序列化；</p>
 <h2 id="Java序列化"><a href="#Java序列化" class="headerlink" title="Java序列化"></a>Java序列化</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.young.blog.serialize;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Person</span> <span class="keyword">implements</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line">    <span class="comment">//16进制表示：f7 18 f0 63 e4 2f f0 56</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = -<span class="number">641498635079520170L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> String name = <span class="string">"AAA"</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> age = <span class="number">100</span>;</span><br><span class="line">    <span class="keyword">private</span> Job job;</span><br><span class="line">    </span><br><span class="line">    <span class="class"><span class="keyword">class</span> <span class="title">Job</span> </span>&#123;</span><br><span class="line">        <span class="comment">//16进制表示：8e d0 f8 77 d6 23 2e 82</span></span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = -<span class="number">8155745731590541694L</span>;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">int</span> salary = <span class="number">9000</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h3 id="二进制格式"><a href="#二进制格式" class="headerlink" title="二进制格式"></a>二进制格式</h3><p>Java序列化是Java语言内置的功能，用于保存一个对象的状态。下面的二进制是使用Java序列化上面对象的结果。</p>
@@ -233,16 +233,14 @@
 <h3 id="二进制格式-1"><a href="#二进制格式-1" class="headerlink" title="二进制格式"></a>二进制格式</h3><p>使用Protobuf序列化Person类的二进制：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">0a 03 41 41 41 10 ac 02 1a 03 08 a8 46</span><br></pre></td></tr></table></figure>
 
-
-
-<p>Protobuf总体的结构如下，所有字段会紧凑的排列在一起，默认顺序就是Java文件中定义的顺序。<br>其中value可以代表真实的数据，也可以代表一个field。</p>
-<img src="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/protobuf.png" class="" title="protobuf">
+<p>Protobuf总体的结构如下，所有字段会紧凑的排列在一起，默认顺序就是Java文件中定义的顺序。其中value可以代表真实的数据，也可以代表一个field。</p>
+<img src="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/protobuf-2.png" class="" title="protobuf">
 
 <h4 id="key"><a href="#key" class="headerlink" title="key"></a>key</h4><p>key由两部分组合而成，第一部分是field_num，从1开始，也就是字段的顺序；第二部分wire_type，是Protobuf定义的一个<strong>数字-类型</strong>对应关系表，如下</p>
 <table>
 <thead>
 <tr>
-<th align="center">Type</th>
+<th align="center">Wire Type</th>
 <th align="center">Meaning</th>
 <th align="center">Used For</th>
 </tr>
@@ -278,7 +276,10 @@
 <td align="center">fixed32, sfixed32, float</td>
 </tr>
 </tbody></table>
-<p>key = field_num &lt;&lt; 3 | wire_type，采用这种组合的方式，能实现使用尽量少的空间保存尽量多的信息。</p>
+<center><mark>key = field_num << 3 | wire_type</mark></center>
+
+<p>采用这种组合的方式，能实现使用尽量少的空间保存尽量多的信息。</p>
+<p>Protobuf中key占一个字节。</p>
 <blockquote>
 <p>很多场合都有这种设计，在一个byte里保存更多的信息</p>
 </blockquote>
@@ -295,45 +296,69 @@
 <h5 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h5><p>举个例子说明一下varint的基本原理，例如对数字<strong>300</strong>进行编码，其二进制为<em>0000 0001 0010 1100</em></p>
 <img src="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/300-example.png" class="" title="300-example">
 
+<ul>
+<li>为什么要逆序排列？ 是因为要按Little-Endian保存</li>
+<li>最后一步填充的bit称为<em>most significant bit</em> (msb)，标明该byte与后面的1个byte是否划分为一组来表示一个数字，0实际就是该数字的截止字节</li>
+<li>通过msb可以在一串连续的byte中识别出哪些是属于一个整数的编码</li>
+</ul>
+<h4 id="手动生成序列化值"><a href="#手动生成序列化值" class="headerlink" title="手动生成序列化值"></a>手动生成序列化值</h4><p>现在手动生成Person的序列化信息，最后比对代码生成的结果，看是否相同。</p>
 <ol>
-<li><p>二进制从右边起7个为一组拆开</p>
-<p>00 0000010 0101100</p>
+<li><p><strong>String name = “AAA”</strong></p>
+<ul>
+<li>第一个field ===&gt; field_num = 1</li>
+<li>是一个字符串 ===&gt; wire_type = 2</li>
+<li>前两个 ===&gt; key = (1&lt;&lt;3) | 2 = <strong>0x0a</strong></li>
+<li>是一个字符串 ===&gt; length = 3</li>
+</ul>
+<p>“AAA” ===&gt; 0x<strong>0a 03 41 41 41</strong></p>
 </li>
-<li><p>先去掉都是0的组，由于Little-Endian，上面的二进制需要翻转一下</p>
-<p>0101100 0000010</p>
+<li><p><strong>int age = 300</strong></p>
+<ul>
+<li>第二个field ===&gt; field_num = 2</li>
+<li>是一个整型 ===&gt; wire_type = 0 </li>
+<li>前两个 ===&gt; key = (2&lt;&lt;3) | 0 = <strong>0x10</strong></li>
+<li>整型可以自描述长度，因此不需要length</li>
+<li>Varint编码 ===&gt; value = 0x<strong>ac 02</strong></li>
+</ul>
+<p>300 ===&gt; 0x<strong>10 ac 02</strong></p>
 </li>
-<li><p>填充这两组的第一个bit，填0还是1取决于后面的byte数</p>
-<p>10101100 00000010</p>
-<p>第一个bit称为<em>most significant bit</em> (msb)，1说明该byte与后面的1个byte共同组成一个数字，0说明当前byte独立表示一个数字</p>
-<p>10101100 00000010 = 0xac 0x02</p>
+<li><p><strong>Job job</strong></p>
+<ul>
+<li><p>job是Person的第三个field ===&gt; field_num = 3</p>
+</li>
+<li><p>是一个复合类型 ===&gt; wire_type = 2 </p>
+</li>
+<li><p>前两个 ===&gt; key = (3&lt;&lt;3) | 2 = 0001 1010 = <strong>0x1a</strong></p>
+</li>
+<li><p>length要描述job中所有信息的总长度，必须等job的属性都编码后才能计算</p>
+</li>
+<li><p>接下来就要编码job的field了</p>
+<ol>
+<li>int salary = 9000<ul>
+<li>Job的第一个field ===&gt; field_num = 1</li>
+<li>是一个整型 ===&gt; wire_type = 0</li>
+<li>可以推出salary的key = (1&lt;&lt;3) | 0 = <strong>0x08</strong></li>
+<li>整型不需要length</li>
+<li>Varint编码 ===&gt; value = 0x<strong>a8 46</strong></li>
+</ul>
 </li>
 </ol>
-<h4 id="手动生成序列化值"><a href="#手动生成序列化值" class="headerlink" title="手动生成序列化值"></a>手动生成序列化值</h4><p>现在手动生成Person的序列化信息，最后比对代码生成的结果，看是否相同。</p>
-<p><strong>String name = “AAA”</strong></p>
-<p>field_num = 1, wire_type = 2</p>
-<p>key = (1&lt;&lt;3) | 2 = 0000 1010 = 0x0a</p>
-<p>length = 3</p>
-<p>value = 0x41 0x41 0x41</p>
-<p>name序列化后： 0a 03 41 41 41</p>
-<p><strong>int age = 300</strong></p>
-<p>field_num = 2, wire_type = 0 </p>
-<p>key = (2&lt;&lt;3) | 0 = 0001 0000 = 0x10</p>
-<p>value = 0xac 0x02</p>
-<p>age序列化结果：10 ac 02</p>
-<p><strong>Job job</strong></p>
-<p>job是个复合字段，这里实际是对Job里面字段的序列化</p>
-<p>field_num = 3, wire_type = 2 </p>
-<p>key = 3&lt;&lt;3 | 2 = 0001 1010 = 0x1a</p>
-<p>length = 3</p>
-<p>value为复合类型</p>
-<ul>
-<li>key = (1&lt;&lt;3) | 0 = 0x08</li>
-<li>value = 0xa8 0x46</li>
+<p>9000 ===&gt; 0x<strong>08 a8 46</strong>   </p>
+<ol start="2">
+<li>job的属性完毕，完成length的计算<ul>
+<li>需要三个byte(因为仅包含salary一个属性，因此实际就是salary的编码长度) ===&gt; length = 3</li>
 </ul>
-<p>因此job的序列化结果： 1a 03 08 a8 46</p>
-<p>和最初给的结果相同。</p>
+</li>
+</ol>
+</li>
+</ul>
+<p>job ===&gt; 0x<strong>1a 03 08 a8 46</strong></p>
+</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;手动编码</span><br><span class="line">0a 03 41 41 41 10 ac 02 1a 03 08 a8 46</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;调用API编码</span><br><span class="line">0a 03 41 41 41 10 ac 02 1a 03 08 a8 46</span><br></pre></td></tr></table></figure>
+
 <blockquote>
-<p>老版本的Protobuf wire_type中有group，当遇到引用类型时，会使用group包裹起来。新版本中，group已废弃，统一使用key-len-value的格式。</p>
+<p>老版本的wire_type中有group，当遇到引用类型时，会使用group包裹起来。新版本中，group已废弃，统一使用key-len-value的格式。</p>
 <p>如果使用过ProtostuffIOUtil包，这里面有两个类ProtobufIOUtil和ProtostuffIOUtil，使用1.4.0版本测试发现，ProtobufIOUtil使用的是新协议格式，而ProtostuffIOUtil使用的是老协议格式，这点要注意</p>
 </blockquote>
 <p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>

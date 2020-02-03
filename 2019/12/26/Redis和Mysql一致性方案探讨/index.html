@@ -21,7 +21,7 @@
 <meta property="og:image" content="http://youngest.cool/2019/12/26/Redis%E5%92%8CMysql%E4%B8%80%E8%87%B4%E6%80%A7%E6%96%B9%E6%A1%88%E6%8E%A2%E8%AE%A8/consistent.jpg">
 <meta property="og:image" content="http://youngest.cool/2019/12/26/Redis%E5%92%8CMysql%E4%B8%80%E8%87%B4%E6%80%A7%E6%96%B9%E6%A1%88%E6%8E%A2%E8%AE%A8/read.png">
 <meta property="article:published_time" content="2019-12-26T08:09:34.000Z">
-<meta property="article:modified_time" content="2019-12-26T12:59:58.649Z">
+<meta property="article:modified_time" content="2020-01-19T09:04:04.734Z">
 <meta property="article:author" content="Yangpeng">
 <meta property="article:tag" content="Redis">
 <meta property="article:tag" content="Mysql">
@@ -230,7 +230,7 @@
 <li>T1更新Mysql的值为V1</li>
 <li><strong>此时Redis的值为V2，Mysql的值为V1，出现了不一致</strong></li>
 </ul>
-<p>其实双更新策略，无论是先更新Redis，还是先更新Mysql，都会面临上面的问题，在高并发场景下无法保证数据一致性。最可怕的是，当出现不一致时，application无法感知，依然以为Redis中的值就是最新的值。实际中，更多地会采用删Redis，更新Mysql的方案。</p>
+<p>其实双更新策略，无论是先更新Redis，还是先更新Mysql，都会面临上面的问题，在高并发场景下无法保证数据一致性。最可怕的是，当出现不一致时，application并不知道，仍然以为Redis中的值就是最新的值。因此在实际中，更多地会采用删Redis，更新Mysql的方案。</p>
 <h5 id="先删除Redis，再更新Mysql"><a href="#先删除Redis，再更新Mysql" class="headerlink" title="先删除Redis，再更新Mysql"></a>先删除Redis，再更新Mysql</h5><p>假如线程T1更新数据，线程T2读取数据</p>
 <ul>
 <li>T1删除了Redis的一个key</li>
@@ -240,9 +240,9 @@
 <li><strong>此时Redis和Mysql的值出现了不一致</strong></li>
 </ul>
 <p>这里Redis的值应该为V2，所以若T1在更新Mysql后，再次删除Redis，则下次读这个key的时候，自然会从Mysql中加载到最新的值。所以这种方式一般都会再强化一下：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">update</span><span class="params">(key)</span></span>&#123;</span><br><span class="line">	redis.del(key);</span><br><span class="line">	mysql.update(key);</span><br><span class="line">	redis.del(key);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">update</span><span class="params">(key)</span></span>&#123;</span><br><span class="line">   redis.del(key);</span><br><span class="line">   mysql.update(key);</span><br><span class="line">   redis.del(key);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>一般情况下，上面的方式已经可以保持一致性了。但如果最后一个删除失败的话，就又退回到前面的方式了。虽然这次删除失败了，但不能试一下就不做了，因为这一步很重要，所以要不断得试直到成功为止。</p>
+<p>一般情况下，上面的方式已经可以保持一致性了。但如果最后一个删除失败的话，就又退回到前面的方式了。所以我们要保证这一步可以成功。怎么做呢？就是重试直到成功为止。</p>
 <h5 id="先更新Mysql，再删除Redis"><a href="#先更新Mysql，再删除Redis" class="headerlink" title="先更新Mysql，再删除Redis"></a>先更新Mysql，再删除Redis</h5><ul>
 <li>T1更新了Mysql的值为V1</li>
 <li>T2更新了Mysql的值为V2</li>
@@ -261,10 +261,11 @@
 </ul>
 <p>上面的几种方式，没有一种能确保Redis 和 Mysql的一致性，什么原因呢？</p>
 <ol>
-<li>Redis key没有设置expiration。这就导致一旦Redis和Mysql出现了不一致，如果之后没有更新，这种不一致可能就一致保持下去了；</li>
+<li>Redis key没有设置expiration。这就导致一旦Redis和Mysql出现了不一致，如果之后没有更新，这种不一致可能就一直保持下去了；</li>
 <li>由于网络，线程调度和GC等原因，多个线程的执行顺序是不可预测的，这就导致可能读到脏数据；</li>
-<li></li>
 </ol>
+<hr>
+<p>参考文献<br><a href=""></a></p>
 
       
     </div>
