@@ -5,7 +5,7 @@
   
   <meta name="baidu-site-verification" content="code-zV8ZpBouut" />
   
-  <title>tag: protobuf | Young</title>
+  <title>jdbc preparedstatement详解 | Young</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   
     <meta name="keywords" content="AABBCC" />
@@ -13,15 +13,21 @@
   
   
   
-  <meta name="description" content="Young&#39;s Blog">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Young">
-<meta property="og:url" content="http://youngest.cool/tags/Protobuf/index.html">
+  <meta name="description" content="JDBC 是 Java 连接数据库的标准组件，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JDBC PreparedStatement详解">
+<meta property="og:url" content="http://youngest.cool/2020/06/28/JDBC-PreparedStatement%E8%AF%A6%E8%A7%A3/index.html">
 <meta property="og:site_name" content="Young">
-<meta property="og:description" content="Young&#39;s Blog">
+<meta property="og:description" content="JDBC 是 Java 连接数据库的标准组件，">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youngest.cool/2020/06/28/JDBC-PreparedStatement%E8%AF%A6%E8%A7%A3/header.jpg">
+<meta property="article:published_time" content="2020-06-28T06:27:38.000Z">
+<meta property="article:modified_time" content="2020-06-28T06:35:30.064Z">
 <meta property="article:author" content="Yangpeng">
+<meta property="article:tag" content="JDBC">
+<meta property="article:tag" content="Mysql">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youngest.cool/2020/06/28/JDBC-PreparedStatement%E8%AF%A6%E8%A7%A3/header.jpg">
   
     <link rel="alternate" href="/atom.xml" title="Young" type="application/atom+xml">
   
@@ -71,8 +77,6 @@
   
 
   
-    <link rel="stylesheet" href="/css/archive.css" >
-  
   
   
 
@@ -80,7 +84,7 @@
 
 
 
-  <body>
+  <body data-spy="scroll" data-target="#toc" data-offset="50">
 
 
   
@@ -170,43 +174,120 @@
             
       <div id="content" class="outer">
         
-          <section id="main" style="float:none;">
-  
-  
-  
+          <section id="main" style="float:none;"> <article id="post-JDBC-PreparedStatement详解" style="width: 100%; float:left;" class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
     
     
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <h1><a href="/archives/2019" class="archive-year">2019</a></h1>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      
-	<a href="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/" class="archive-article-date">
-	  <time datetime="2019-12-21T08:21:21.201Z" itemprop="datePublished">2019-12-21</time>
-	</a>
-
-      
+      <header class="article-header">
+        
   
-    <h1 class="thumb" itemprop="name">
-      <a class="archive-article-title" href="/2019/12/21/%E5%BA%8F%E5%88%97%E5%8C%96/">序列化协议</a>
+    <h1 class="thumb" class="article-title" itemprop="name">
+      JDBC PreparedStatement详解
     </h1>
   
 
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2020/06/28/JDBC-PreparedStatement%E8%AF%A6%E8%A7%A3/" class="article-date">
+	  <time datetime="2020-06-28T06:27:38.000Z" itemprop="datePublished">2020-06-28</time>
+	</a>
 
+      
+      
+	<a class="article-views">
+	<span id="busuanzi_container_page_pv">
+		阅读量<span id="busuanzi_value_page_pv"></span>
+	</span>
+	</a>
+
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <img src="/2020/06/28/JDBC-PreparedStatement%E8%AF%A6%E8%A7%A3/header.jpg" class="" title="header">
+
+<p>JDBC 是 Java 连接数据库的标准组件，</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      
+      
+      
+      <div>
+        <ul class="post-copyright">
+          <li class="post-copyright-author">
+          <strong>本文作者:  </strong>Yangpeng</a>
+          </li>
+          <li class="post-copyright-link">
+          <strong>本文链接:  </strong>
+          <a href="/2020/06/28/JDBC-PreparedStatement详解/" target="_blank" title="JDBC PreparedStatement详解">http://youngest.cool/2020/06/28/JDBC-PreparedStatement详解/</a>
+          </li>
+          <li class="post-copyright-license">
+            <strong>版权声明:   </strong>
+            本博客所有文章除特别声明外，均采用 <a rel="license" href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" title="Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)">CC BY-NC-ND 4.0</a>
+            许可协议。转载请注明出处
+          </li>
+         
+        </ul>
+<div>
+
+      
+      
+        
+	<div id="comment">
+		<!-- 国内Valine评论系统 -->
+		<div id="lv-container" data-id="city" data-uid="Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz" style="margin-top:45px"></div>
+		<script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+		<script src='//unpkg.com/valine/dist/Valine.min.js'></script>
+		<script>
+        new Valine({
+            el: '#lv-container',
+            appId: 'Myb4RTrLJ6Do8QQXWurqv5Ve-gzGzoHsz',
+            appKey: 'IOJj3idrR64NvJ7CM41rhDHT',
+            notify: false, 
+    		verify: false, 
+    		avatar: 'monsterid', 
+    		placeholder: '说点什么吧!'
+        })
+        </script>
+	
+
+	</div>
+
+
+
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2020/01/15/Dubbo-%E4%B8%80%E6%AC%A1%E8%B0%83%E7%94%A8%E8%BF%87%E7%A8%8B/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">下一篇</strong>
+      <div class="article-nav-title">Dubbo 一次调用过程</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+<!-- Table of Contents -->
+
+  <aside id="toc-sidebar" class="toc-hide">
+    <div id="toc" class="toc-article">
+    <strong class="toc-title">文章目录</strong>
+    
+        <ol class="nav">无</ol>
+    
+    </div>
+  </aside>
 
 </section>
         
@@ -308,6 +389,10 @@
 
 
 
+  
+<script src="/js/dialog.js"></script>
+
+
 
 
 
@@ -391,6 +476,8 @@
   
   <a id="rocket" href="#top" class=""></a>
   <script type="text/javascript" src="/js/totop.js?v=1.0.0" async=""></script>
+  
+    <a id="menu-switch"><i class="fa fa-bars fa-lg"></i></a>
   
 </body>
 </html>
